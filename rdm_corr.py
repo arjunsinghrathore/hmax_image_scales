@@ -25,9 +25,107 @@ import rsatoolbox
 seed_everything(42, workers=True)
 
 ####################################################################
-'''
-'''
+def calc_rdms_thomas_torch(measurements_1, measurements_2):
 
+    sum_sq_measurements_1 = torch.sum(measurements_1**2, dim=1, keepdim=True)
+    sum_sq_measurements_2 = torch.sum(measurements_2**2, dim=1, keepdim=True)
+    # Doing it the way ||x2 - x1||^2 = ||x2||^2 + ||x1||^2 - 2 <x2, x1> ----> Same thing goes for the y coordinates
+    rdm = sum_sq_measurements_1 + sum_sq_measurements_2.t() - 2 * torch.matmul(measurements_1, measurements_2.t())
+
+    return rdm
+
+'''
+Expecting Input to be of the shape --> Bx(C*S)xHxW 
+Arguments:
+scale_base_state_features --> The features of the reference scale. Shape --> Bx(C*S)xHxW 
+scale_state_features --> The features of the other scale. Shape --> Bx(C*S)xHxW 
+scale --> scale of the scale_state_features
+n_scales --> Total number of scales
+scale_datasets
+'''
+def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
+
+    print('####################################################################')
+    print('scale : ',scale)
+    print('scale_base_state_features shape : ',scale_base_state_features.shape)
+    print('scale_state_features shape : ',scale_state_features.shape)
+
+    # Step 1
+    # Rearrange Bx(C*S)xHxW --> But then convert to ScalexBxCxHxW 
+    B, C_S, H, W = scale_base_state_features.shape
+    if c_stage == 'c1':
+        n_scales_base = n_scales-1
+    elif c_stage == 'c2' or c_stage == 'c2b':
+        n_scales_base = n_scales-2
+    elif c_stage == 'c3':
+        n_scales_base = n_scales-3
+
+    scale_base_state_features = scale_base_state_features.reshape(B, n_scales_base, int(C_S/n_scales_base), H, W)
+    scale_base_state_features = scale_base_state_features.transpose(1,0,2,3,4)
+
+    #
+    B, C_S, H, W = scale_state_features.shape
+    if c_stage == 'c1':
+        n_scales_i = n_scales-1
+    elif c_stage == 'c2' or c_stage == 'c2b':
+        n_scales_i = n_scales-2
+    elif c_stage == 'c3':
+        n_scales_i = n_scales-3
+
+    scale_state_features = scale_state_features.reshape(B, n_scales_i, int(C_S/n_scales_i), H, W)
+    scale_state_features = scale_state_features.transpose(1,0,2,3,4)
+
+    # Step 2
+    # Take mean across CxHxW 
+    scale_base_state_features_mean = np.mean(scale_base_state_features, axis = (2,3,4))
+    scale_state_features_mean = np.mean(scale_state_features, axis = (2,3,4))
+
+    print('scale_base_state_features_mean shape : ',scale_base_state_features_mean.shape)
+    print('scale_state_features_mean shape : ',scale_state_features_mean.shape)
+
+    # Step 3
+    # Z Normalize seperately for each category
+    scale_base_state_features_z_norm = (scale_base_state_features_mean - np.mean(scale_base_state_features_mean, axis = 1, keepdims = True)) / np.std(scale_base_state_features_mean, axis = 1, keepdims = True)
+    scale_state_features_z_norm = (scale_state_features_mean - np.mean(scale_state_features_mean, axis = 1, keepdims = True)) / np.std(scale_state_features_mean, axis = 1, keepdims = True)
+
+    # Preparing data for calculating RDM by converting to torch
+    scale_base_state_features_z_norm_torch = torch.tensor(scale_base_state_features_z_norm)
+    scale_state_features_z_norm_torch = torch.tensor(scale_state_features_z_norm)
+    
+    # Step 4
+    # Build the RDM Matrices by taking pairwise category euclidean distance for the 2 states
+    rdm = calc_rdms_thomas_torch(scale_base_state_features_z_norm_torch, scale_state_features_z_norm_torch)
+    rdm_numpy = rdm.numpy()
+
+    # Plotting and Saving
+    ############################################
+    # Getting the scale channel names
+    # For base
+    scales_ch_x = [str(int(scale/(160/18))) + '_is' for _ in range(n_scales_i)]
+    scales_ch_y = ['18_is' for _ in range(n_scales_base)]
+
+    ############################################
+    
+    figure = plt.figure()
+    axes = figure.add_subplot(111)
+    
+    # using the matshow() function
+    caxes = axes.matshow(rdm_numpy, interpolation ='nearest')
+    figure.colorbar(caxes)
+    
+    axes.set_xticklabels(['']+scales_ch_x)
+    axes.set_yticklabels(['']+scales_ch_y)
+
+    # fig, ax, ret_val = rsatoolbox.vis.show_rdm(model_rdms, show_colorbar='figure')
+
+    img_name = 'scale_state_features_rdm_stage_' + c_stage + '_scale_' + str(scale) + '.png'
+    save_path = os.path.join(save_dir, img_name)
+    figure.savefig(save_path, bbox_inches='tight', dpi=300)
+
+
+
+
+####################################################################
 '''
 Expecting Input to be of the shape --> CatxBx(C*S)xHxW
 And expecting that the input comes out to be for a single category already segregated
