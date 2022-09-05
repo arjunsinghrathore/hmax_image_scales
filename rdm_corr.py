@@ -41,7 +41,8 @@ scale_base_state_features --> The features of the reference scale. Shape --> Bx(
 scale_state_features --> The features of the other scale. Shape --> Bx(C*S)xHxW 
 scale --> scale of the scale_state_features
 n_scales --> Total number of scales
-scale_datasets
+save_dir --> Where the plots will be saved
+c_stage --> For which c stage are we computing the rdms....it should be one of ['c1', 'c2', 'c2b', 'c3']
 '''
 def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
 
