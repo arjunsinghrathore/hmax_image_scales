@@ -75,6 +75,10 @@ def fastnorm(in_arr):
     arr_norm = np.dot(in_arr.ravel(), in_arr.ravel()).sum() ** (1. / 2.)
     return arr_norm
 
+def fastnorm_tensor(in_arr):
+    arr_norm = torch.dot(in_arr.ravel(), in_arr.ravel()).sum() ** (1. / 2.)
+    return arr_norm
+
 
 def get_sp_kernel_sizes_C(scales, num_scales_pooled, scale_stride):
     '''
@@ -298,15 +302,25 @@ class C(nn.Module):
                 self.sp_stride = [int(np.ceil(self.sp_stride_factor * kernel_size)) for kernel_size in self.sp_kernel_size]
                 # self.sp_stride = [int(np.ceil(0.5 + kernel_size/self.sp_kernel_size[len(self.sp_kernel_size)//2])) for kernel_size in self.sp_kernel_size]
 
-    def forward(self, x_pyramid, x_input = None, MNIST_Scale = None, batch_idx = None, category = None):
+    def forward(self, x_pyramid, x_input = None, MNIST_Scale = None, batch_idx = None, category = None, \
+                prj_name = None, same_scale_viz = None, base_scale = None):
         # TODO - make this whole section more memory efficient
 
         # print('####################################################################################')
         # print('####################################################################################')
 
+        # print('C same_scale_viz : ',same_scale_viz)
+        # print('C base_scale : ',base_scale)
+
+
         c_maps = []
         if not self.global_pool:
-            ori_size = x_pyramid[0].shape[2:4]
+            if same_scale_viz:
+                ori_size = (base_scale, base_scale)
+            else:
+                ori_size = x_pyramid[0].shape[2:4]
+
+            # print('ori_size : ',ori_size)
             count_p = 0
             for p_i in range(len(x_pyramid)-1):
                 # print('############################')
@@ -373,13 +387,15 @@ class C(nn.Module):
         c_tensor = torch.cat(c_maps, dim = 1)
         c_numpy = c_tensor.cpu().numpy()
 
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", self.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
+        print('self.prj_name : ', prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
         # os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, "filters_data.pkl")
 
         open_file = open(file_name, "rb")
         filters_data = pickle.load(open_file)
+        print('filters_data : ',filters_data.keys())
         open_file.close()
 
         if self.c1_bool:
@@ -406,7 +422,7 @@ class C(nn.Module):
 
         #######################################
 
-        # if self.visualize_mode:
+        # # if self.visualize_mode:
         # if True and self.c1_bool:
         #     combined_image = np.empty((1))
         #     ori_size = (x_input[0][0].shape[-1], x_input[0][0].shape[-1])
@@ -414,11 +430,11 @@ class C(nn.Module):
         #     for c_i, scale_maps in enumerate(c1_maps_reverse):
         #         scale_maps = pad_to_size(scale_maps, ori_size)
         #         scale_maps_clone = scale_maps.clone()
-        #         scale_maps_clone = scale_maps_clone[0]
+        #         scale_maps_clone = torch.mean(scale_maps_clone[:], dim = 0)
 
         #         # combined_vertical_image = np.empty((1))
         #         x_input_reverse = list(reversed(x_input))
-        #         combined_vertical_image = x_input_reverse[c_i][0]
+        #         combined_vertical_image = torch.mean(x_input_reverse[c_i][:], dim = 0)
         #         combined_vertical_image = pad_to_size(combined_vertical_image, ori_size)
         #         combined_vertical_image = combined_vertical_image.cpu().numpy()
         #         # CxHxW --> HxWxC
@@ -453,10 +469,11 @@ class C(nn.Module):
         #     out_path = os.path.join(job_dir, "filters.png")
         #     cv2.imwrite(out_path, combined_image)
 
-        #######################################
+        # #######################################
 
-        # if True and batch_idx == 0:
-        #     combined_vertical_image = x_input[0][0]
+        # if (self.c1_bool or self.c2_bool) and batch_idx == 0:
+        #     combined_vertical_image = torch.mean(x_input[0][:], dim = 0)
+        #     print('pre combined_vertical_image : ',combined_vertical_image.shape)
         #     combined_vertical_image = combined_vertical_image.cpu().numpy()
         #     # CxHxW --> HxWxC
         #     combined_vertical_image = combined_vertical_image.transpose(1,2,0)
@@ -464,12 +481,17 @@ class C(nn.Module):
         #     combined_vertical_image = combined_vertical_image.astype('uint8')
         #     combined_vertical_image = cv2.copyMakeBorder(combined_vertical_image,3,3,3,3,cv2.BORDER_CONSTANT,value=[255,255,255])
             
-        #     ori_size = (x_input[0][0].shape[-1], x_input[0][0].shape[-1])
+        #     if same_scale_viz:
+        #         ori_size = (base_scale, base_scale)
+        #     else:
+        #         ori_size = (x_input[0][0].shape[-1], x_input[0][0].shape[-1])
+
+        #     # print('ori_size : ',ori_size)
             
         #     for s_i, scale_maps in enumerate(c_maps):
         #         scale_maps = pad_to_size(scale_maps, ori_size)
         #         scale_maps_clone = scale_maps.clone()
-        #         scale_maps_clone = scale_maps_clone[0]
+        #         scale_maps_clone = torch.mean(scale_maps_clone[:], dim = 0)
 
         #         for f_i, filter_maps in enumerate(scale_maps_clone):
         #             filter_maps_numpy = filter_maps.cpu().numpy()
@@ -480,13 +502,19 @@ class C(nn.Module):
         #             filter_maps_numpy = filter_maps_numpy.astype('uint8')
         #             filter_maps_numpy = cv2.copyMakeBorder(filter_maps_numpy,3,3,3,3,cv2.BORDER_CONSTANT,value=[255,255,255])
 
+        #             # print('filter_maps_numpy : ',filter_maps_numpy.shape)
+        #             # print('combined_vertical_image : ',combined_vertical_image.shape)
+
         #             combined_vertical_image = cv2.vconcat([combined_vertical_image, filter_maps_numpy])
 
         #             break
 
-        #     main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters/C1'
+        #     if self.c1_bool:
+        #         main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters/C1'
+        #     elif self.c2_bool:
+        #         main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters/C2'
         #     os.makedirs(main_dir, exist_ok=True)
-        #     job_dir = os.path.join(main_dir, "prj_{}".format(self.prj_name))
+        #     job_dir = os.path.join(main_dir, "prj_{}".format(prj_name))
         #     os.makedirs(job_dir, exist_ok=True)
 
         #     # out_path = os.path.join(job_dir, "{}_filters_temp.png".format(self.MNIST_Scale))
@@ -501,18 +529,25 @@ class C(nn.Module):
 class S2(nn.Module):
     def __init__(self, channels_in, channels_out, kernel_size, stride):
         super(S2, self).__init__()
+
+        ############## FastNorm Changes ##############
         if type(kernel_size) == int:
             self.kernel_size = [kernel_size]
-            setattr(self, f's_0', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size, stride),
-                                                # nn.BatchNorm2d(channels_out, 1e-3),
-                                                nn.ReLU(True)))
+            # setattr(self, f's_0', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size, stride),
+            #                                     # nn.BatchNorm2d(channels_out, 1e-3),
+            #                                     nn.ReLU(True)))
+
+            setattr(self, f's_0', nn.Conv2d(channels_in, channels_out, kernel_size, stride))
+
         elif type(kernel_size) == list:
             self.kernel_size = kernel_size
             self.kernel_size.sort()
             for i in range(len(kernel_size)):
-                setattr(self, f's_{i}', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size[i], stride),
-                                                    #   nn.BatchNorm2d(channels_out, 1e-3),
-                                                      nn.ReLU(True)))
+                # setattr(self, f's_{i}', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size[i], stride),
+                #                                     #   nn.BatchNorm2d(channels_out, 1e-3),
+                #                                       nn.ReLU(True)))
+
+                setattr(self, f's_{i}', nn.Conv2d(channels_in, channels_out, kernel_size[i], stride))
 
     def forward(self, x_pyramid):
         # Evaluate input
@@ -525,21 +560,26 @@ class S2(nn.Module):
             s_maps_per_i = []
             layer = getattr(self, f's_{k}')
             for i in range(len(x_pyramid)):  # assuming S is last dimension
+
+                x = x_pyramid[i]
+
+                ############## FastNorm Changes ##############
                 # ############################################
                 # if True: #k != 0:
                 #     # s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0])**2)
                 #     for p_i in range(x.shape[1]):
-                #         filter_norm = fastnorm(layer.weight[:,p_i].data)
+                #         # filter_norm = fastnorm_tensor(layer.weight[:,p_i].data)
+                #         filter_norm = (self.kernel_size[k]/self.kernel_size[0])**2
                 #         layer.weight[:,p_i].data = layer.weight[:,p_i].data/filter_norm
                 # ############################################
 
-                x = x_pyramid[i]
-                s_map = layer(x)
+                s_map = F.relu(layer(x))
+                # s_map = layer(x)
 
-                ############################################
-                if k != 0:
-                    s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0])**2)
-                ############################################
+                # ############################################
+                # if k != 0:
+                #     s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0])**2)
+                # ############################################
 
                 # TODO: think about whether the resolution gets too small here
                 ori_size = x.shape[2:4]
@@ -592,19 +632,28 @@ class HMAX_IP(nn.Module):
         self.MNIST_Scale = MNIST_Scale
         self.category = category
         self.prj_name = prj_name
+        self.scale = 4
 
         self.c_scale_stride = 1
         self.c_num_scales_pooled = 2
 
         self.c1_scale_stride = self.c_scale_stride
         self.c1_num_scales_pooled = self.c_num_scales_pooled
-        # self.c1_sp_kernel_sizes = [10, 8] 
-        # self.c1_sp_kernel_sizes = [10, 8, 10, 8, 6, 4, 3, 2, 1]
+
+        self.same_scale_viz = None
+        self.base_scale = None
+        
         # self.c1_sp_kernel_sizes = [36, 28, 22, 17, 13, 10, 8, 6, 4, 3, 2, 1]
 
         # self.c1_sp_kernel_sizes = [17, 13, 10, 8, 6, 4, 3, 2, 1]
-        self.c1_sp_kernel_sizes = [13, 10, 8, 6, 4, 3, 2, 1]
-        # self.c1_sp_kernel_sizes = [6, 6, 6, 6 , 6, 6, 6, 6, 6]
+
+        # self.c1_sp_kernel_sizes = [13, 10, 8, 6, 4, 3, 2, 1] # --> This # For 7 scales
+
+        # For scales
+        base_filt_size = 17 #17
+        scale = self.scale
+        self.c1_sp_kernel_sizes = [int(np.ceil(base_filt_size/(2**(i/scale)))) if int(np.ceil(base_filt_size/(2**(i/scale))))%2 == 0 else int(np.floor(base_filt_size/(2**(i/scale)))) for i in range(ip_scales)]
+        ###########################
 
 
         self.c2_scale_stride = self.c_scale_stride
@@ -612,9 +661,17 @@ class HMAX_IP(nn.Module):
         # self.c2_sp_kernel_sizes = [8, 6] 
 
         # self.c2_sp_kernel_sizes = [13, 10, 8, 6, 4, 3, 2, 1, 1]
-        self.c2_sp_kernel_sizes = [10, 8, 6, 4, 3, 2, 1, 1]
-        # self.c2_sp_kernel_sizes = [4, 4, 4, 4 , 4, 4, 4, 4, 4]
 
+        # self.c2_sp_kernel_sizes = [10, 8, 6, 4, 3, 2, 1, 1] # --> This # For 7 scales
+
+        # For 14 scales
+        base_filt_size = self.c1_sp_kernel_sizes[1]
+        scale = self.scale
+        self.c2_sp_kernel_sizes = [int(np.ceil(base_filt_size/(2**(i/scale)))) if int(np.ceil(base_filt_size/(2**(i/scale))))%2 == 0 else int(np.floor(base_filt_size/(2**(i/scale)))) for i in range(ip_scales)]
+        ############################
+
+        print('c1_sp_kernel_sizes : ',self.c1_sp_kernel_sizes)
+        print('c2_sp_kernel_sizes : ',self.c2_sp_kernel_sizes)
     
 
         self.c2b_scale_stride = self.c_scale_stride
@@ -673,13 +730,19 @@ class HMAX_IP(nn.Module):
                                         )
 
     def get_s4_in_channels(self):
-        c1_out = (self.ip_scales-1) * self.n_ori
-        c2_out = (self.ip_scales-2) * self.s2.s_0[0].weight.shape[0]
-        c3_out = (self.ip_scales-3) * self.s3.s_0[0].weight.shape[0]
-        c2b_out = len(self.s2b.kernel_size) * (self.ip_scales-2) * self.s2b.s_0[0].weight.shape[0]
-        # c3_out = self.s3.s_0[0].weight.shape[0]
-        # c2b_out = len(self.s2b.kernel_size) * self.s2b.s_0[0].weight.shape[0]
-        s4_in = c1_out + c2_out + c3_out + c2b_out
+        # c1_out = (self.ip_scales-1) * self.n_ori
+        # c2_out = (self.ip_scales-2) * self.s2.s_0[0].weight.shape[0]
+        # c3_out = (self.ip_scales-3) * self.s3.s_0[0].weight.shape[0]
+        # c2b_out = len(self.s2b.kernel_size) * (self.ip_scales-2) * self.s2b.s_0[0].weight.shape[0]
+        # # c3_out = self.s3.s_0[0].weight.shape[0]
+        # # c2b_out = len(self.s2b.kernel_size) * self.s2b.s_0[0].weight.shape[0]
+        # s4_in = c1_out + c2_out + c3_out + c2b_out
+
+        ############## FastNorm Changes ##############
+        # s4_in = 2924 # For 7 scales
+        s4_in = 4132 # For 10 scales
+        # s4_in = 6548 # For 14 scales
+
         return s4_in
 
     # def make_ip(self, x):
@@ -696,49 +759,69 @@ class HMAX_IP(nn.Module):
         
     #     return image_pyramid
 
-    def make_ip(self, x):
+    def make_ip(self, x, same_scale_viz = None, base_scale = None):
 
-        base_image_size = int(x.shape[-1])
-        image_scales_down = [np.ceil(base_image_size/(2**(i/3))) if np.ceil(base_image_size/(2**(i/3)))%2 == 0 else np.floor(base_image_size/(2**(i/3))) for i in range(int(np.ceil(self.ip_scales/2)))]
-        image_scales_up = [np.ceil(base_image_size*(2**(i/3))) if np.ceil(base_image_size*(2**(i/3)))%2 == 0 else np.floor(base_image_size*(2**(i/3))) for i in range(1, int(np.ceil(self.ip_scales/2)))]
+        # print('make_ip same_scale_viz : ',same_scale_viz)
+        # print('make_ip base_scale : ',base_scale)
+
+        base_image_size = int(x.shape[-1]) 
+
+        # print('base_image_size : ',base_image_size)
+        scale = self.scale #5
+        image_scales_down = [np.ceil(base_image_size/(2**(i/scale))) if np.ceil(base_image_size/(2**(i/scale)))%2 == 0 else np.floor(base_image_size/(2**(i/scale))) for i in range(int(np.ceil(self.ip_scales/2)))]
+        image_scales_up = [np.ceil(base_image_size*(2**(i/scale))) if np.ceil(base_image_size*(2**(i/scale)))%2 == 0 else np.floor(base_image_size*(2**(i/scale))) for i in range(1, int(np.ceil(self.ip_scales/2)))]
         # image_scales = [np.ceil(base_image_size) if np.ceil(base_image_size)%2 == 0 else np.floor(base_image_size) for i in range(self.ip_scales)]
 
         image_scales = image_scales_down + image_scales_up
-        image_scales = sorted(image_scales)
+        # self.image_scales = sorted(image_scales)
+        index_sort = np.argsort(image_scales)
+        index_sort = index_sort[::-1]
+        self.image_scales = [image_scales[i_s] for i_s in index_sort]
+
+        # print('image_scales image_scales : ',self.image_scales)
+
+        if same_scale_viz:
+            base_image_size = base_scale
+        else:
+            base_image_size = int(x.shape[-1]) 
+
+        # print('base_image_size : ',base_image_size)
 
         image_pyramid = []
-        for i_s in image_scales:
+        for i_s in self.image_scales:
             i_s = int(i_s)
             interpolated_img = F.interpolate(x, size = (i_s, i_s), mode = 'bicubic').clamp(min=0, max=1)
-            if i_s < base_image_size:
+            if i_s <= base_image_size:
                 pad_input = pad_to_size(interpolated_img, (base_image_size, base_image_size))
                 image_pyramid.append(pad_input) # ??? Wgats is the range?
             elif i_s > base_image_size:
                 center_crop = torchvision.transforms.CenterCrop(base_image_size)
                 image_pyramid.append(center_crop(interpolated_img))
-            else:
-                image_pyramid.append(x)
+            # else:
+            #     image_pyramid.append(x)
+
+            # print('image_pyramid : ',image_pyramid[-1].shape,' ::: i_s : ',i_s,' ::: base_image_size : ',base_image_size)
 
         return image_pyramid
 
     def forward(self, x, batch_idx = None):
 
         ###############################################
-        x_pyramid = self.make_ip(x) # Out 10 Scales x BxCxHxW --> C = 3
+        x_pyramid = self.make_ip(x, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Out 10 Scales x BxCxHxW --> C = 3
 
         ###############################################
         s1_maps = self.s1(x_pyramid, self.MNIST_Scale, batch_idx) # Out 10 Scales x BxCxHxW --> C = 4
-        c1_maps = self.c1(s1_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category)  # Out 9 Scales x BxCxHxW --> C = 4
+        c1_maps = self.c1(s1_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale)  # Out 9 Scales x BxCxHxW --> C = 4
 
         s2_maps = self.s2(c1_maps) # Out 9 Scales x BxCxHxW --> C = 2000
-        c2_maps = self.c2(s2_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category) # Out 8 Scales x BxCxHxW --> C = 2000
+        c2_maps = self.c2(s2_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Out 8 Scales x BxCxHxW --> C = 2000
         s3_maps = self.s3(c2_maps) # Out 8 Scales x BxCxHxW --> C = 2000
-        c3_maps = self.c3(s3_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category) # Overall x BxCx1x1 --> C = 2000
+        c3_maps = self.c3(s3_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Overall x BxCx1x1 --> C = 2000
 
         ###############################################
         # ByPass Routes
         s2b_maps = self.s2b(c1_maps) # Out 9 Scales x BxCxHxW --> C = 2000
-        c2b_maps = self.c2b(s2b_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category) # Overall x BxCx1x1 --> C = 2000
+        c2b_maps = self.c2b(s2b_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Overall x BxCx1x1 --> C = 2000
 
         ###############################################
         # Prepare inputs for S4
