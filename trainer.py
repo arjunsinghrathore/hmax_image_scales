@@ -37,7 +37,7 @@ import dataloader_lightning
 # print('Importedddddd HMAX_latest_slim')
 import hmax_fixed_ligtning
 
-from rdm_corr import rdm_corr_func, rdm_corr_scales_func
+from rdm_corr import rdm_corr_scales_func
 
 import os
 import shutil
@@ -70,32 +70,38 @@ if __name__ == '__main__':
     # base = pt_model.slice
 
     # Hyper-Parameters
-    prj_name = "checkpoint_HMAX_PNAS_IVAN_100_GAP_MNIST_18_17s_224i_10e6_s4_drop_lr" #_new_stride"
-    # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_7s_up_down_linderberg_C_first_pos_s_normalize_filt_norm_alpha_1by4_192_13_down_mp_like_HMAX_continued"
+    IP_bool = True
+    if not(IP_bool):
+        prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
+    else:
+        prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S1_batch_norm_S2_alpha_norm_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_looped_seperate_C1_C2_only_adaptive_mp_linear_classifier_1e5"
+
+        # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
     n_ori = 4
     n_classes = 10
-    IP_bool = False
 
     if IP_bool:
         # lr = 0.000001 # For 7 scales
-        lr = 0.00000005 # For 14 scales
-        # lr = 0.00005
+        # lr = 0.00000005 # For 14 scales
+        lr = 0.00001
         weight_decay = 1e-4
-        batch_size_per_gpu = 8
+        batch_size_per_gpu = 4
         num_epochs = 1000
-        ip_scales = 10 #14 #7
-        image_size = 160 #128 #192
+        ip_scales = 18 #14 #7
+        image_size = 192 #128 #192
+        linderberg_bool = False
     else:
-        lr = 10e-6# --> HMAX
+        lr = 10e-5# --> HMAX
         weight_decay = 1e-4
         batch_size_per_gpu = 4
         num_epochs = 1000
         ip_scales = 17
         image_size = 192 #224 # For HMAx
+        linderberg_bool = False
 
 
     # Mode
-    test_mode = False
+    test_mode = True
     val_mode = False
     continue_tr = False
     visualize_mode = False
@@ -107,8 +113,9 @@ if __name__ == '__main__':
 
     # Dataset Setting
     if same_scale_viz:
+        # Like Linderberg
         base_image_size = image_size
-        scale = 4
+        scale = 5
         image_scales_down = [int(np.ceil(base_image_size/(2**(i/scale)))) if np.ceil(base_image_size/(2**(i/scale)))%2 == 0 else int(np.floor(base_image_size/(2**(i/scale)))) for i in range(int(np.ceil(ip_scales/2)))]
         image_scales_up = [int(np.ceil(base_image_size*(2**(i/scale)))) if np.ceil(base_image_size*(2**(i/scale)))%2 == 0 else int(np.floor(base_image_size*(2**(i/scale)))) for i in range(1, int(np.ceil(ip_scales/2)))]
         # image_scales = [np.ceil(base_image_size) if np.ceil(base_image_size)%2 == 0 else np.floor(base_image_size) for i in range(self.ip_scales)]
@@ -119,9 +126,20 @@ if __name__ == '__main__':
         index_sort = np.argsort(image_scales)
         index_sort = index_sort[::-1]
         scale_datasets = [image_scales[i_s] for i_s in index_sort]
+
+
+        # Like Mutch
+        # base_image_size = image_size
+        # scale = 5
+        # image_scales = [int(np.ceil(base_image_size/(2**(i/scale)))) for i in range(ip_scales)]
+        # # image_scales = [np.ceil(base_image_size) if np.ceil(base_image_size)%2 == 0 else np.floor(base_image_size) for i in range(self.ip_scales)]
+
+        # scale_datasets = image_scales
+
+        print('scale_datasets : ',scale_datasets)
         
     else:
-        scale_datasets = [18,24,30,36,12,8,4,20,16]
+        scale_datasets = [18,36,8,24,30,12,4,20,16]
 
     train_dataset = 18
     rdm_datasets = [18, 24]
@@ -133,7 +151,7 @@ if __name__ == '__main__':
     model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale)
 
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=443-val_acc1=86.18790064102564-val_loss=0.4148487138531445.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=0-val_acc1=91.77684294871794-val_loss=0.562743636658892.ckpt')
 
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
@@ -163,10 +181,31 @@ if __name__ == '__main__':
     traindir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/scale" + str(train_dataset) + "/train"
     valdir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/scale" + str(train_dataset) + "/test"
     testdir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/scale"
+    linderberg_dir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/Linderberg_Data/mnist_large_scale_tr50000_vl10000_te10000_outsize112-112_sctr2p000_scte2p000-1.h5"
+    linderberg_test_dir = {0.5: "mnist_large_scale_te10000_outsize112-112_scte0p500.h5",
+                           0.595: "mnist_large_scale_te10000_outsize112-112_scte0p595.h5",
+                           0.707: "mnist_large_scale_te10000_outsize112-112_scte0p707.h5",
+                           0.841: "mnist_large_scale_te10000_outsize112-112_scte0p841.h5",
 
+                           1: "mnist_large_scale_te10000_outsize112-112_scte1p000.h5",
+                           1.189: "mnist_large_scale_te10000_outsize112-112_scte1p189.h5",
+                           1.414: "mnist_large_scale_te10000_outsize112-112_scte1p414.h5",
+                           1.682: "mnist_large_scale_te10000_outsize112-112_scte1p682.h5",
+
+                           2: "mnist_large_scale_te10000_outsize112-112_scte2p000.h5",
+                           2.378: "mnist_large_scale_te10000_outsize112-112_scte2p378.h5",
+                           2.828: "mnist_large_scale_te10000_outsize112-112_scte2p828.h5",
+                           3.364: "mnist_large_scale_te10000_outsize112-112_scte3p364.h5",
+
+                           4: "mnist_large_scale_te10000_outsize112-112_scte4p000.h5",
+                           4.757: "mnist_large_scale_te10000_outsize112-112_scte4p757.h5",
+                           5.657: "mnist_large_scale_te10000_outsize112-112_scte5p657.h5",
+                           6.727: "mnist_large_scale_te10000_outsize112-112_scte6p727.h5",
+                           8: "mnist_large_scale_te10000_outsize112-112_scte8p000.h5"}
 
     # Calling the dataloader
-    data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz)
+    data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                             linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir)
 
 
     # Callbacks and Trainer
@@ -182,11 +221,11 @@ if __name__ == '__main__':
     neptune_logger = NeptuneLogger(
         api_key="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJjYThkNDA5ZC0yYWM2LTRhYzgtOGMwYi03Y2ZlMzg2MjhiYzEifQ==",  # replace with your own
         project="Serre-Lab/monkey-ai",  # "<WORKSPACE/PROJECT>"
-        tags=["training_HMAX"],  # optional
+        tags=["training_HMAX_pyramid" if IP_bool else "training_HMAX"],  # optional
         source_files=['*.py'],
     )
     
-    trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], logger = neptune_logger) #, gradient_clip_val= 0.5, \
+    trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback]) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
                                                 # gradient_clip_algorithm="value") #, logger = wandb_logger)
     # Train
     if not(test_mode or val_mode or rdm_corr or rdm_thomas):
@@ -377,7 +416,7 @@ if __name__ == '__main__':
                     print('key_name : ', key_name, ' : Shape : ', temp_data.shape)
                     print('base_key_name : ', base_key_name, ' : Shape : ', base_temp_data.shape)
 
-                    # rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, scale_datasets, save_dir, c_stage):
+                    # rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
                     rdm_corr_scales_func(base_temp_data, temp_data, s_data, len(rdm_thomas_datasets), job_dir, stage)
 
                     
@@ -389,63 +428,95 @@ if __name__ == '__main__':
         # model.prj_name = model.prj_name + "_ivan_test"
         # model.HMAX.prj_name = model.HMAX.prj_name + "_ivan_test"
         # prj_name = prj_name + "_ivan_test"
-        for s_i, s_data in enumerate(scale_datasets):
+    
+        if not(linderberg_bool):
+            for s_i, s_data in enumerate(scale_datasets):
 
-            print('###################################################')
-            print('###################################################')
-            print('This is scale : ',s_data)
+                print('###################################################')
+                print('###################################################')
+                print('This is scale : ',s_data)
 
-            model.HMAX.MNIST_Scale = s_data
-            model.MNIST_Scale = s_data
+                model.HMAX.MNIST_Scale = s_data
+                model.MNIST_Scale = s_data
 
-            if same_scale_viz:
-                testdir_scale = testdir + str(train_dataset) + "/test_viz"
-            else:
-                testdir_scale = testdir + str(s_data) + "/test"
-            # Calling the dataloader
-            data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale, batch_size_per_gpu, n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz)
+                if same_scale_viz:
+                    testdir_scale = testdir + str(train_dataset) + "/test_viz"
+                else:
+                    testdir_scale = testdir + str(s_data) + "/test"
+                # Calling the dataloader
+                data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale, batch_size_per_gpu, n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz)
 
-            #
-            # + str(s_data)
-            # prj_name = prj_name + "_ivan_test"
-            if s_i == 0:
-                model.first_scale_test = True
-            else:
-                model.first_scale_test = False
+                #
+                # + str(s_data)
+                # prj_name = prj_name + "_ivan_test"
+                if s_i == 0:
+                    model.first_scale_test = True
+                else:
+                    model.first_scale_test = False
+                #
+                trainer.test(model, data)
+        else:
+            l_i = 0
+            for l_data in linderberg_test_dir:
 
-            #
-            trainer.test(model, data)
+                print('###################################################')
+                print('###################################################')
+                print('This is l_data : ',l_data)
+
+                model.HMAX.MNIST_Scale = l_data
+                model.MNIST_Scale = l_data
+
+                l_h5_file = linderberg_test_dir[l_data]
+
+                linderberg_dir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/Linderberg_Data/" + l_h5_file
+                # Calling the dataloader
+                data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, linderberg_dir, batch_size_per_gpu, \
+                                                        n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz, \
+                                                        linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir, linderberg_test = True)
+
+                #
+                # + str(s_data)
+                # prj_name = prj_name + "_ivan_test"
+                if l_i == 0:
+                    model.first_scale_test = True
+                else:
+                    model.first_scale_test = False
+                
+                l_i += 1
+                #
+                trainer.test(model, data)
 
         # #
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", model.prj_name)
-        os.makedirs(job_dir, exist_ok=True)
-        file_name = os.path.join(job_dir, "scale_test_acc.pkl")
-        open_file = open(file_name, "rb")
-        test_accs = pickle.load(open_file)
-        open_file.close()
+        if not(same_scale_viz):
+            job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", model.prj_name)
+            os.makedirs(job_dir, exist_ok=True)
+            file_name = os.path.join(job_dir, "scale_test_acc.pkl")
+            open_file = open(file_name, "rb")
+            test_accs = pickle.load(open_file)
+            open_file.close()
 
-        index_sort = np.argsort(scale_datasets)
-        scale_datasets = np.array(scale_datasets)[index_sort]
-        test_accs = np.array(test_accs)[index_sort]
+            index_sort = np.argsort(scale_datasets)
+            scale_datasets = np.array(scale_datasets)[index_sort]
+            test_accs = np.array(test_accs)[index_sort]
 
-        fig = plt.figure(figsize=(18,10), dpi=250)
-        ax = fig.add_subplot(111)
-        ax.scatter(scale_datasets, test_accs)
-        ax.set_xlabel(
-        "Scales",
-        fontweight="bold",
-        fontsize=15.0)
-        ax.set_ylabel(
-        "Accuracy",
-        fontweight="bold",
-        fontsize=15.0,)
-        for xy in zip(scale_datasets, test_accs):                                       # <--
-            ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data') # <--
+            fig = plt.figure(figsize=(18,10), dpi=250)
+            ax = fig.add_subplot(111)
+            ax.scatter(scale_datasets, test_accs)
+            ax.set_xlabel(
+            "Scales",
+            fontweight="bold",
+            fontsize=15.0)
+            ax.set_ylabel(
+            "Accuracy",
+            fontweight="bold",
+            fontsize=15.0,)
+            for xy in zip(scale_datasets, test_accs):                                       # <--
+                ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data') # <--
 
-        ax.grid()
+            ax.grid()
 
-        job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/scale_invar_plots"
-        fig.savefig(os.path.join(job_dir, prj_name))
+            job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/scale_invar_plots"
+            fig.savefig(os.path.join(job_dir, prj_name))
 
         
         # #####################################################################################################
