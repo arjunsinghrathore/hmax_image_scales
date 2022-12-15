@@ -144,9 +144,10 @@ class S1(nn.Module):
         nn.init.constant_(s1_uniform.weight, 1)
         for param in s1_uniform.parameters():
             param.requires_grad = False
+
         self.batchnorm = nn.BatchNorm2d(n_ori, 1e-3)
 
-    def forward(self, x_pyramid, MNIST_Scale = None, batch_idx = None):
+    def forward(self, x_pyramid, MNIST_Scale = None, batch_idx = None, prj_name = None):
         self.MNIST_Scale = MNIST_Scale
         s1_maps = []
         # Loop over scales, normalizing.
@@ -175,6 +176,10 @@ class S1(nn.Module):
         #     ori_size = (x_pyramid[0][0].shape[-1], x_pyramid[0][0].shape[-1])
 
         #     combined_vertical_image = x_pyramid[-5][0].clone()
+
+        #     combined_vertical_image = combined_vertical_image - torch.min(combined_vertical_image)
+        #     combined_vertical_image = (combined_vertical_image/torch.max(combined_vertical_image))
+
         #     combined_vertical_image = pad_to_size(combined_vertical_image, ori_size)
         #     combined_vertical_image = combined_vertical_image.cpu().numpy()
         #     # CxHxW --> HxWxC
@@ -186,14 +191,19 @@ class S1(nn.Module):
             
         #     for s_i in range(1, len(s1_maps)+1):
         #         scale_maps = s1_maps[-s_i].clone()
-        #         scale_maps = scale_maps - torch.min(scale_maps)
-        #         scale_maps = (scale_maps/torch.max(scale_maps))
+
+        #         # scale_maps = scale_maps - torch.min(scale_maps)
+        #         # scale_maps = (scale_maps/torch.max(scale_maps))
+
         #         scale_maps = pad_to_size(scale_maps, ori_size)
         #         # print('scale_maps : ',scale_maps.shape)
         #         scale_maps_clone = scale_maps.clone()
         #         scale_maps_clone = scale_maps_clone[0]
 
         #         for f_i, filter_maps in enumerate(scale_maps_clone):
+        #             filter_maps = filter_maps - torch.min(filter_maps)
+        #             filter_maps = (filter_maps/torch.max(filter_maps))
+
         #             filter_maps_numpy = filter_maps.cpu().numpy()
         #             # CxHxW --> HxWxC
         #             filter_maps_numpy = filter_maps_numpy.reshape(1, *filter_maps_numpy.shape)
@@ -210,7 +220,7 @@ class S1(nn.Module):
 
         #     main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters/S1'
         #     os.makedirs(main_dir, exist_ok=True)
-        #     job_dir = os.path.join(main_dir, "prj_{}".format(self.prj_name))
+        #     job_dir = os.path.join(main_dir, "prj_{}".format(prj_name))
         #     os.makedirs(job_dir, exist_ok=True)
 
         #     # out_path = os.path.join(job_dir, "{}_filters_temp.png".format(self.MNIST_Scale))
@@ -259,7 +269,8 @@ class C(nn.Module):
                 # self.sp_stride = [int(np.ceil(0.5 + kernel_size/self.sp_kernel_size[len(self.sp_kernel_size)//2])) for kernel_size in self.sp_kernel_size]
 
     def forward(self, x_pyramid, x_input = None, MNIST_Scale = None, batch_idx = None, category = None, \
-                prj_name = None, same_scale_viz = None, base_scale = None, c1_sp_kernel_sizes = None, c2_sp_kernel_sizes = None):
+                prj_name = None, same_scale_viz = None, base_scale = None, c1_sp_kernel_sizes = None, \
+                c2_sp_kernel_sizes = None, image_scales = None, overall_max_scale_index = False):
         # TODO - make this whole section more memory efficient
 
         # print('####################################################################################')
@@ -271,7 +282,7 @@ class C(nn.Module):
         else:
             ori_size = x_pyramid[0].shape[2:4]
 
-        # Single scale band case
+        # Single scale band case --> While Training
         if len(x_pyramid) == 1:
             if not self.global_pool:
                 x = F.max_pool2d(x_pyramid[0], self.sp_kernel_size[0], self.sp_stride[0])
@@ -282,32 +293,27 @@ class C(nn.Module):
                 s_m = F.max_pool2d(x_pyramid[0], x_pyramid[0].shape[-1], 1)
                 c_maps.append(s_m)
 
-        # Multi Scale band case
+        # Multi Scale band case ---> While Testing
         else:
+            #####################################################
             if not self.global_pool:
                 if same_scale_viz:
                     ori_size = (base_scale, base_scale)
                 else:
-                    ori_size = x_pyramid[-5].shape[2:4]
+                    if len(x_pyramid) == 2:
+                        ori_size = x_pyramid[0].shape[2:4]
+                    else:
+                        ori_size = x_pyramid[-5].shape[2:4]
 
+                ####################################################
+                # MaxPool for C1 with 2 scales being max pooled over at a time
                 for p_i in range(len(x_pyramid)-1):
                     # print('############################')
-                    # print('x_pyramid[p_i] : ',x_pyramid[p_i].shape)
-                    # print('x_pyramid[p_i+1] : ',x_pyramid[p_i+1].shape)
-                    # What is the ideal case when x_1 and x_2 will have same dimensions
-
-                    # x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[p_i], self.sp_stride[p_i])
-                    # x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[p_i+1], self.sp_stride[p_i+1])
                     x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[0], self.sp_stride[0])
                     x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[1], self.sp_stride[1])
 
-            
-                    # print('x_1 = ',x_1.shape, ' :: self.sp_kernel_size[p_i] = ',self.sp_kernel_size[p_i], ' :: self.sp_stride[p_i] = ',self.sp_stride[p_i])
-                    # print('x_2 = ',x_2.shape, ' :: self.sp_kernel_size[p_i+1] = ',self.sp_kernel_size[p_i+1], ' :: self.sp_stride[p_i+1] = ',self.sp_stride[p_i+1]) 
 
-                    # x_1 = pad_to_size(x_1, ori_size)
-                    # x_2 = pad_to_size(x_2, ori_size)
-
+                    # First interpolating such that feature points match spatially
                     if x_1.shape[-1] > x_2.shape[-1]:
                         # x_2 = pad_to_size(x_2, x_1.shape[-2:])
                         x_2 = F.interpolate(x_2, size = x_1.shape[-2:], mode = 'bilinear')
@@ -315,6 +321,7 @@ class C(nn.Module):
                         # x_1 = pad_to_size(x_1, x_2.shape[-2:])
                         x_1 = F.interpolate(x_1, size = x_2.shape[-2:], mode = 'bilinear')
 
+                    # Then padding
                     x_1 = pad_to_size(x_1, ori_size)
                     x_2 = pad_to_size(x_2, ori_size)
 
@@ -325,78 +332,256 @@ class C(nn.Module):
                     to_append, _ = torch.max(x, dim=4)
                     c_maps.append(to_append)
 
+                ###################################################
+                # MaxPool for C1 with 1 scale only being max pooled over at a time
+                # for p_i in range(len(x_pyramid)):
+                #     # print('############################')
+                #     # print('x_pyramid[p_i] : ',x_pyramid[p_i].shape)
+                #     # print('x_pyramid[p_i+1] : ',x_pyramid[p_i+1].shape)
+                #     # What is the ideal case when x_1 and x_2 will have same dimensions
+
+                #     # x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[p_i], self.sp_stride[p_i])
+                #     # x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[p_i+1], self.sp_stride[p_i+1])
+                #     x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[0], self.sp_stride[0])
+
+                #     x_1 = pad_to_size(x_1, ori_size)
+
+                #     c_maps.append(x_1)
+
+                ####################################################
+                # ArgMax case for C1
+                # for p_i in range(len(x_pyramid)-1):
+                #     scale_max = []
+
+                #     # x_1 = F.max_pool2d(x_pyramid[p_i], x_pyramid[p_i].shape[-1])
+
+                #     x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[p_i], self.sp_stride[p_i])
+
+
+                #     # x_2 = F.max_pool2d(x_pyramid[p_i+1], x_pyramid[p_i+1].shape[-1])
+
+                #     x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[p_i+1], self.sp_stride[p_i+1])
+
+                #     if x_1.shape[-1] > x_2.shape[-1]:
+                #         # x_2 = pad_to_size(x_2, x_1.shape[-2:])
+                #         x_2 = F.interpolate(x_2, size = x_1.shape[-2:], mode = 'bilinear')
+                #     else:
+                #         # x_1 = pad_to_size(x_1, x_2.shape[-2:])
+                #         x_1 = F.interpolate(x_1, size = x_2.shape[-2:], mode = 'bilinear')
+
+                    
+                #     x_1 = torch.sum(x_1, dim = (2,3)) #/image_scales[p_i]
+                #     x_1 = x_1.reshape(*x_pyramid[p_i].shape[:2])
+                #     x_1 = torch.sort(x_1, dim = -1)[0]
+                #     scale_max.append(x_1)
+
+                #     x_2 = torch.sum(x_2, dim = (2,3)) #/image_scales[p_i]
+                #     x_2 = x_2.reshape(*x_pyramid[p_i+1].shape[:2])
+                #     x_2 = torch.sort(x_2, dim = -1)[0]
+                #     scale_max.append(x_2)
+
+                #     # scale_max shape --> Scale x B x C
+                #     scale_max = torch.stack(scale_max, dim=0) # Shape --> Scale x B x C
+
+                #     x_max = []
+                #     for b_i in range(scale_max.shape[1]):
+
+                #         scale_max_argsort = torch.argsort(torch.stack([scale_max[0][b_i], scale_max[1][b_i]], dim=0), dim = 0) # Shape --> 2 x C
+                #         # print('x_pyramid_flatten_argsort : ',x_pyramid_flatten_argsort)
+                #         # Sum across the (CxHxW) dimension
+                #         sum_scale_batch = torch.sum(scale_max_argsort, dim = 1) # SHape --> 2 x 1]
+                #         # sum_scale_batch = sum_scale_batch.cpu().numpy()
+                #         # sum_scale_batch = sum_scale_batch.astype(np.float32)
+                #         # sum_scale_batch[0] = sum_scale_batch[0]/image_scales[max_scale_index[b_i]]
+                #         # sum_scale_batch[1] = sum_scale_batch[1]/image_scales[p_i]
+                #         # print('max_scale_index[b_i] : ', max_scale_index[b_i], ':: p_i : ', p_i, ' :: sum_scale_batch : ',sum_scale_batch)
+
+                #         if sum_scale_batch[0] < sum_scale_batch[1]:
+                #             # print('Smaller Scale : ')
+                #             x_max_batch = F.max_pool2d(x_pyramid[p_i+1][b_i], self.sp_kernel_size[1], self.sp_stride[1])
+                #         else:
+                #             # print('Larger Scale : ')
+                #             x_max_batch = F.max_pool2d(x_pyramid[p_i][b_i], self.sp_kernel_size[0], self.sp_stride[0])
+
+                #         x_max_batch = pad_to_size(x_max_batch, ori_size)
+
+                #         x_max.append(x_max_batch)
+
+                #         x_1 = None
+                #         x_2 = None
+                #         x_max_batch = None
+
+                #     x_max = torch.stack(x_max, dim=0)
+
+                #     c_maps.append(x_max)
+                
+                ####################################################
+
+            ####################################################
+            # MaxPool over all positions first then scales (C2b)
+            else:
+                scale_max = []
+                # Global MaxPool over positions for each scale separately
+                for p_i in range(len(x_pyramid)):
+                    s_m = F.max_pool2d(x_pyramid[p_i], x_pyramid[p_i].shape[-1], 1)
+                    scale_max.append(s_m)
+
+                # Option 1:: Global Max Pooling over Scale i.e, Maxpool over scale groups
+                x = torch.stack(scale_max, dim=4)
+                to_append, _ = torch.max(x, dim=4)
+                c_maps.append(to_append)
+
+                # # Option 2:: No Global Max Pooling over Scale
+                # for s_i in range(len(scale_max)-1):
+                #     # Maxpool over scale groups
+                #     x = torch.stack([scale_max[s_i], scale_max[s_i+1]], dim=4)
+
+                #     to_append, _ = torch.max(x, dim=4)
+                #     c_maps.append(to_append)
+
+                # # Option 3: Give scale_max as c_maps
+                # c_maps = scale_max
+
+            # #####################################################
+            # # Argmax
             # else:
-            #     scale_max = []
-            #     for p_i in range(len(x_pyramid)):
-            #         s_m = F.max_pool2d(x_pyramid[p_i], x_pyramid[p_i].shape[-1], 1)
-            #         scale_max.append(s_m)
+            #     #####################################################
+            #     # x_pyramid shape --> Scale x BxCxHxW
+            #     x_pyramid_flatten = [torch.sort(x_pyramid[p_i].reshape(x_pyramid[p_i].shape[0],-1), dim =- 1)[0] for p_i in range(len(x_pyramid))]
+            #     x_pyramid_flatten = torch.stack(x_pyramid_flatten, dim=0) # Shape --> Scale x B x (CxHxW)
 
-            #     # Option 1:: Global Max Pooling over Scale
-            #     x = torch.stack(scale_max, dim=4)
+            #     # print('x_pyramid_flatten : ',x_pyramid_flatten.shape)
 
-            #     # Maxpool over scale groups
-            #     to_append, _ = torch.max(x, dim=4)
+            #     max_scale_index = [0]*x_pyramid_flatten.shape[1]
+            #     # max_scale_index = torch.tensor(max_scale_index).cuda()
+            #     for p_i in range(1, len(x_pyramid)):
+            #         # Getting ready the max scale indexes x_pyramid till now
+            #         # x_pyramid_flatten_maxes = []
+            #         # for b_i in range(x_pyramid_flatten.shape[1]):
+            #         #     x_pyramid_flatten_maxes.append(x_pyramid_flatten[max_scale_index[b_i]][b_i])
+            #         # x_pyramid_flatten_maxes = torch.stack(x_pyramid_flatten_maxes, dim = 0) # shape --> B x (CxHxW)
+            #         # # print('x_pyramid_flatten_maxes : ',x_pyramid_flatten_maxes.shape)
+
+            #         top_5_percentile_len = int(len(x_pyramid_flatten[0][0]) * 0.05)
+
+
+            #         for b_i in range(x_pyramid_flatten.shape[1]):
+
+            #             x_pyramid_flatten_argsort = torch.argsort(torch.stack([x_pyramid_flatten[max_scale_index[b_i]][b_i][-top_5_percentile_len:], x_pyramid_flatten[p_i][b_i][-top_5_percentile_len:]], dim=0), dim = 0) # Shape --> 2 x (CxHxW)
+            #             # print('x_pyramid_flatten_argsort : ',x_pyramid_flatten_argsort)
+            #             # Sum across the (CxHxW) dimension
+            #             sum_scale_batch = torch.sum(x_pyramid_flatten_argsort, dim = 1) # SHape --> 2 x 1
+            #             # print('sum_scale_batch : ',sum_scale_batch)
+
+            #             if sum_scale_batch[0] < sum_scale_batch[1]:
+            #                 max_scale_index[b_i] = p_i
+
+
+            #     # max_scale_index = torch.argmax(sum_scale)
+
+
+            #     to_append = []
+            #     for b_i in range(x_pyramid_flatten.shape[1]):
+            #         print('max_scale_index : ',max_scale_index[b_i])
+            #         to_append_batch = F.max_pool2d(x_pyramid[max_scale_index[b_i]][b_i][None], x_pyramid[max_scale_index[b_i]][b_i][None].shape[-1], 1) # Shape --> 1 x C x 1 x 1
+            #         # print('to_append_batch shape : ',to_append_batch.shape)
+            #         to_append.append(to_append_batch)
+
+            #     to_append = torch.cat(to_append, dim = 0)
+            #     # print('to_append shape : ',to_append.shape)
+
 
             #     c_maps.append(to_append)
 
-            #     # # Option 2:: No Global Max Pooling over Scale
-            #     # for s_i in range(len(scale_max)-1):
-            #     #     # Maxpool over scale groups
-            #     #     x = torch.stack([scale_max[s_i], scale_max[s_i+1]], dim=4)
+            #     #####################################################
 
-            #     #     to_append, _ = torch.max(x, dim=4)
-            #     #     c_maps.append(to_append)
+            # # Argmax with global maxpool/sum over H, W
+            # else:
+            #     #####################################################
+            #     scale_max = []
+            #     for p_i in range(len(x_pyramid)):
 
-            #############
-            # Argmax
-            else:
-                #####################################################
-                # x_pyramid shape --> Scale x BxCxHxW
-                x_pyramid_flatten = [torch.sort(x_pyramid[p_i].reshape(x_pyramid[p_i].shape[0],-1), dim =- 1)[0] for p_i in range(len(x_pyramid))]
-                x_pyramid_flatten = torch.stack(x_pyramid_flatten, dim=0) # Shape --> Scale x B x (CxHxW)
+            #         s_m = x_pyramid[p_i]
 
-                # print('x_pyramid_flatten : ',x_pyramid_flatten.shape)
+            #         # #####################################################
+            #         # # Rescale
+            #         # new_dimension = int(image_scales[-(p_i+1)]) #int(s_m.shape[-1]/(image_scales[p_i]/image_scales[4]))
+            #         # # if new_dimension >= s_m.shape[-1]:
+            #         # #     new_dimension = s_m.shape[-1]
+            #         # print('Old Shape : ',s_m.shape[-1], ' ::: New Dimension : ',new_dimension)
+            #         # s_m = F.interpolate(s_m, size = (new_dimension, new_dimension), mode = 'bilinear')
+            #         # print('s_m shape : ',s_m.shape)
+            #         # # s_m = s_m.reshape(*s_m.shape[:2])
+            #         # #####################################################
+            #         # # Crop
+            #         # new_dimension = int(image_scales[-(p_i+1)]) #int(s_m.shape[-1]/(image_scales[p_i]/image_scales[4]))
+            #         # if new_dimension >= s_m.shape[-1]:
+            #         #     new_dimension = s_m.shape[-1]
+            #         # print('Old Shape : ',s_m.shape[-1], ' ::: New Dimension : ',new_dimension)
+            #         # center_crop = torchvision.transforms.CenterCrop(new_dimension)
+            #         # s_m = center_crop(s_m)
+            #         # print('s_m shape : ',s_m.shape)
+            #         # # s_m = s_m.reshape(*s_m.shape[:2])
+            #         #####################################################
+            #         # MaxPool H,W
+            #         s_m = F.max_pool2d(s_m, s_m.shape[-1], 1)
+            #         # s_m = F.avg_pool2d(s_m, s_m.shape[-1], 1)
+            #         s_m = s_m.reshape(*x_pyramid[p_i].shape[:2])
+            #         # Sum H,W
+            #         # s_m = torch.sum(s_m, dim = (2,3)) #/image_scales[p_i]
+            #         # s_m = s_m.reshape(*x_pyramid[p_i].shape[:2])
+            #         #####################################################
+            #         s_m = torch.sort(s_m, dim = -1)[0]
+            #         scale_max.append(s_m)
 
-                max_scale_index = [0]*x_pyramid_flatten.shape[1]
-                # max_scale_index = torch.tensor(max_scale_index).cuda()
-                for p_i in range(1, len(x_pyramid)):
-                    # Getting ready the max scale indexes x_pyramid till now
-                    # x_pyramid_flatten_maxes = []
-                    # for b_i in range(x_pyramid_flatten.shape[1]):
-                    #     x_pyramid_flatten_maxes.append(x_pyramid_flatten[max_scale_index[b_i]][b_i])
-                    # x_pyramid_flatten_maxes = torch.stack(x_pyramid_flatten_maxes, dim = 0) # shape --> B x (CxHxW)
-                    # # print('x_pyramid_flatten_maxes : ',x_pyramid_flatten_maxes.shape)
+            #     # scale_max shape --> Scale x B x C
+            #     scale_max = torch.stack(scale_max, dim=0) # Shape --> Scale x B x C
+            #     # print('scale_max : ',scale_max.shape)
+
+            #     # print('image_scales : ',image_scales)
+
+            #     max_scale_index = [0]*scale_max.shape[1]
+            #     # max_scale_index = torch.tensor(max_scale_index).cuda()
+            #     for p_i in range(1, len(x_pyramid)):
+                    
+            #         for b_i in range(scale_max.shape[1]):
+
+            #             # print(f'b_i : {b_i}, p_i {p_i}')
+            #             # print('scale_max[max_scale_index[b_i]][b_i] : ',scale_max[max_scale_index[b_i]][b_i])
+            #             # print('scale_max[p_i][b_i] : ',scale_max[p_i][b_i])
+
+            #             scale_max_argsort = torch.argsort(torch.stack([scale_max[max_scale_index[b_i]][b_i], scale_max[p_i][b_i]], dim=0), dim = 0) # Shape --> 2 x C
+            #             # print('x_pyramid_flatten_argsort : ',x_pyramid_flatten_argsort)
+            #             # Sum across the (CxHxW) dimension
+            #             sum_scale_batch = torch.sum(scale_max_argsort, dim = 1) # SHape --> 2 x 1]
+
+            #             # sum_scale_batch = sum_scale_batch.cpu().numpy()
+            #             # sum_scale_batch = sum_scale_batch.astype(np.float32)
+            #             # sum_scale_batch[0] = sum_scale_batch[0]/((image_scales[max_scale_index[b_i]]/image_scales[-1])**1)
+            #             # sum_scale_batch[1] = sum_scale_batch[1]/((image_scales[p_i]/image_scales[-1])**1)
+            #             # print('max_scale_index[b_i] : ', max_scale_index[b_i], ':: p_i : ', p_i, ' :: sum_scale_batch : ',sum_scale_batch)
+
+            #             if sum_scale_batch[0] < sum_scale_batch[1]:
+            #                 max_scale_index[b_i] = p_i
 
 
-                    for b_i in range(x_pyramid_flatten.shape[1]):
-
-                        x_pyramid_flatten_argsort = torch.argsort(torch.stack([x_pyramid_flatten[max_scale_index[b_i]][b_i], x_pyramid_flatten[p_i][b_i]], dim=0), dim = 0) # Shape --> 2 x (CxHxW)
-                        print('x_pyramid_flatten_argsort : ',x_pyramid_flatten_argsort)
-                        # Sum across the (CxHxW) dimension
-                        sum_scale_batch = torch.sum(x_pyramid_flatten_argsort, dim = 1) # SHape --> 2 x 1
-                        print('sum_scale_batch : ',sum_scale_batch)
-
-                        if sum_scale_batch[0] < sum_scale_batch[1]:
-                            max_scale_index[b_i] = p_i
+            #     # max_scale_index = torch.argmax(sum_scale)
 
 
-                # max_scale_index = torch.argmax(sum_scale)
+            #     to_append = []
+            #     for b_i in range(scale_max.shape[1]):
+            #         # print('max_scale_index : ',max_scale_index[b_i])
+            #         to_append_batch = F.max_pool2d(x_pyramid[max_scale_index[b_i]][b_i][None], x_pyramid[max_scale_index[b_i]][b_i][None].shape[-1], 1) # Shape --> 1 x C x 1 x 1
+            #         # print('to_append_batch shape : ',to_append_batch.shape)
+            #         to_append.append(to_append_batch)
+
+            #     to_append = torch.cat(to_append, dim = 0)
+            #     # print('to_append shape : ',to_append.shape)
 
 
-                to_append = []
-                for b_i in range(x_pyramid_flatten.shape[1]):
-                    print('max_scale_index : ',max_scale_index[b_i])
-                    to_append_batch = F.max_pool2d(x_pyramid[max_scale_index[b_i]][b_i][None], x_pyramid[max_scale_index[b_i]][b_i][None].shape[-1], 1) # Shape --> 1 x C x 1 x 1
-                    # print('to_append_batch shape : ',to_append_batch.shape)
-                    to_append.append(to_append_batch)
+            #     c_maps.append(to_append)
 
-                to_append = torch.cat(to_append, dim = 0)
-                # print('to_append shape : ',to_append.shape)
-
-
-                c_maps.append(to_append)
-
-                #####################################################
+                ####################################################
 
                 
             ############################################################################
@@ -432,8 +617,17 @@ class C(nn.Module):
             #     key_name = 'c2b_scale_' + str(int(MNIST_Scale*1000)) #+ '_cat_' + str(category)
             #     print('key_name : ',key_name)
 
-            #     c_stack = torch.stack(c_maps, dim = 4)
-            #     to_append, _ = torch.max(c_stack, dim=4)
+            #     # # Option 2
+            #     # c_stack = torch.stack(c_maps, dim = 4)
+            #     # to_append, _ = torch.max(c_stack, dim=4)
+            #     # c_maps = [to_append]
+
+            #     # Option 3
+            #     x = torch.stack(c_maps, dim=4)
+
+            #     # Maxpool over scale groups
+            #     to_append, _ = torch.max(x, dim=4)
+
             #     c_maps = [to_append]
 
             # if key_name in filters_data:
@@ -455,6 +649,10 @@ class C(nn.Module):
             # if (self.c1_bool or self.c2_bool) and batch_idx == 0:
             #     # combined_vertical_image = torch.mean(x_input[8][:], dim = 0)
             #     combined_vertical_image = x_input[-5][0]
+
+            #     combined_vertical_image = combined_vertical_image - torch.min(combined_vertical_image)
+            #     combined_vertical_image = (combined_vertical_image/torch.max(combined_vertical_image))
+
             #     print('pre combined_vertical_image : ',combined_vertical_image.shape)
             #     combined_vertical_image = combined_vertical_image.cpu().numpy()
             #     # CxHxW --> HxWxC
@@ -474,8 +672,10 @@ class C(nn.Module):
                 
             #     for s_i in range(1, len(c_maps)+1):
             #         scale_maps = c_maps[-s_i]
-            #         scale_maps = scale_maps - torch.min(scale_maps)
-            #         scale_maps = scale_maps/torch.max(scale_maps)
+
+            #         # scale_maps = scale_maps - torch.min(scale_maps)
+            #         # scale_maps = scale_maps/torch.max(scale_maps)
+
             #         scale_maps = pad_to_size(scale_maps, ori_size)
             #         scale_maps_clone = scale_maps.clone()
             #         # scale_maps_clone = torch.mean(scale_maps_clone[:], dim = 0)
@@ -483,6 +683,9 @@ class C(nn.Module):
 
 
             #         for f_i, filter_maps in enumerate(scale_maps_clone):
+            #             filter_maps = filter_maps - torch.min(filter_maps)
+            #             filter_maps = filter_maps/torch.max(filter_maps)
+
             #             filter_maps_numpy = filter_maps.cpu().numpy()
             #             # CxHxW --> HxWxC
             #             filter_maps_numpy = filter_maps_numpy.reshape(1, *filter_maps_numpy.shape)
@@ -516,7 +719,11 @@ class C(nn.Module):
             #     np.save(out_path, combined_vertical_image)
 
 
-        return c_maps
+           
+        if not self.global_pool: 
+            return c_maps #, overall_max_scale_index
+        else:
+            return c_maps, max_scale_index
 
 
 class S2(nn.Module):
@@ -526,7 +733,10 @@ class S2(nn.Module):
         if type(kernel_size) == int:
             self.kernel_size = [kernel_size]
 
-            setattr(self, f's_0', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size, stride)))
+            setattr(self, f's_0', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size, stride),
+                                                # nn.BatchNorm2d(channels_out, 1e-3),
+                                                # nn.ReLU(True)
+                                                ))
 
             # setattr(self, f's_uniform_0', nn.Conv2d(channels_in, channels_out, kernel_size, stride, bias=False))
             # s2b_uniform = getattr(self, f's_uniform_0')
@@ -540,13 +750,18 @@ class S2(nn.Module):
             self.kernel_size.sort()
             for i in range(len(kernel_size)):
                 
-                setattr(self, f's_{i}', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size[i], stride, dilation = 1)))
+                setattr(self, f's_{i}', nn.Sequential(nn.Conv2d(channels_in, channels_out, kernel_size[i], stride, dilation = 1),
+                                                    #  nn.BatchNorm2d(channels_out, 1e-3),
+                                                    #  nn.ReLU(True)
+                                                    ))
 
                 # setattr(self, f's_uniform_{i}', nn.Conv2d(channels_in, channels_out, kernel_size[i], stride, bias=False))
                 # s2b_uniform = getattr(self, f's_uniform_{i}')
                 # nn.init.constant_(s2b_uniform.weight, 1)
                 # for param in s2b_uniform.parameters():
                 #     param.requires_grad = False
+
+            # self.batchnorm_s2b = nn.BatchNorm2d(channels_out*len(kernel_size), 1e-3)
 
         self.batchnorm = nn.BatchNorm2d(channels_out, 1e-3)
 
@@ -568,18 +783,18 @@ class S2(nn.Module):
                 x = x_pyramid[i]
                 s_map = layer(x)
 
-                # ############################################
+                # # ############################################
                 if k != 0:
                     # s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0]))       # Sqrt
                     s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0])**2)  # Square (Default)
                     # s_map = s_map / ((self.kernel_size[k]/self.kernel_size[0])**3)  # Cube
 
-                # if len(self.kernel_size) > 1:
-                #     s2b_unorm = torch.sqrt(abs(s2b_unorm_norm(x**2)))
-                #     # s2b_unorm = torch.sqrt(s2b_unorm(x))
-                #     s2b_unorm.data[s2b_unorm == 0] = 1  # To avoid divide by zero
-                #     s_map = s_map / s2b_unorm
-                ############################################
+                # # if len(self.kernel_size) > 1:
+                # #     s2b_unorm = torch.sqrt(abs(s2b_unorm_norm(x**2)))
+                # #     # s2b_unorm = torch.sqrt(s2b_unorm(x))
+                # #     s2b_unorm.data[s2b_unorm == 0] = 1  # To avoid divide by zero
+                # #     s_map = s_map / s2b_unorm
+                # ############################################
 
                 # s_map = self.batchnorm(s_map)
 
@@ -598,6 +813,21 @@ class S2(nn.Module):
                 k_list = [s_maps_per_k[j][i] for j in range(len(s_maps_per_k))]
                 temp_maps = torch.cat(k_list, dim=1)
                 s_maps.append(temp_maps)
+
+        # s_maps = torch.stack(s_maps, dim = 0)
+        # s_maps = s_maps.permute(1,0,2,3,4)
+        # B, S, C, H, W = s_maps.shape
+        # s_maps = s_maps.reshape(B, S*C, H, W)
+        # s_maps = F.normalize(s_maps, p = 2, dim = 1)
+        # s_maps = s_maps.reshape(B, S, C, H, W)
+        # s_maps = s_maps.permute(1,0,2,3,4)
+
+        # B, C, H, W = s_maps[0].shape
+        # for s_i in range(len(s_maps)):  # 
+        #     s_maps[s_i] = s_maps[s_i].reshape(B, C, H, W)
+        #     s_maps[s_i] = self.batchnorm_s2b(s_maps[s_i])
+
+
 
         return s_maps
 
@@ -665,7 +895,8 @@ class HMAX_IP_basic_single_band(nn.Module):
         # self.c1_sp_kernel_sizes = [16,13,13,13,13,13,13,13,13,13,13,13,13,13]
         # self.c1_sp_kernel_sizes = [18,15,15,15,15,15,15,15,15,15,15,15,15,15]
         # self.c1_sp_kernel_sizes = [20,17,17,17,17,17,17,17,17,17,17,17,17,17]
-        self.c1_sp_kernel_sizes = [22,18,18,18,18,18,18,18,18,18,18,18,18,18]
+
+        self.c1_sp_kernel_sizes = [22,18]
         ########################################################
         # For scale C2
         # Option 1:
@@ -681,7 +912,7 @@ class HMAX_IP_basic_single_band(nn.Module):
         # index_sort = index_sort[::-1]
         # self.c2_sp_kernel_sizes = [int(filt_scales[i_s]) for i_s in index_sort]
 
-        self.c2_sp_kernel_sizes = [8, 6,6,6,6,6,6,6,6,6,6,6,6,6,6]
+        self.c2_sp_kernel_sizes = [18,15]
 
         # Option 2:
         #  self.c2_sp_kernel_sizes = [9]*(ip_scales-1)
@@ -693,9 +924,7 @@ class HMAX_IP_basic_single_band(nn.Module):
 
         # If it is a single scale band training
         if self.single_scale_bool:
-            single_index = int(np.ceil(ip_scales/2)) - 1
-            # self.c1_sp_kernel_sizes = [self.c1_sp_kernel_sizes[single_index]]
-            # self.c2_sp_kernel_sizes = [self.c2_sp_kernel_sizes[single_index]]
+            # SIngle Scale
             self.c1_sp_kernel_sizes = [self.c1_sp_kernel_sizes[0]]
             self.c2_sp_kernel_sizes = [self.c2_sp_kernel_sizes[0]]
 
@@ -703,6 +932,16 @@ class HMAX_IP_basic_single_band(nn.Module):
             self.c_num_scales_pooled = 1
 
             self.ip_scales = 1
+
+            # Single Scaleband
+            # self.c1_sp_kernel_sizes = [self.c1_sp_kernel_sizes[0], self.c1_sp_kernel_sizes[1]]
+            # self.c2_sp_kernel_sizes = [self.c2_sp_kernel_sizes[0], self.c2_sp_kernel_sizes[1]]
+
+            # self.c_scale_stride = 1
+            # self.c_num_scales_pooled = 2
+
+            # self.ip_scales = 2
+
         else:
             self.c_scale_stride = 1
             self.c_num_scales_pooled = 2
@@ -723,11 +962,11 @@ class HMAX_IP_basic_single_band(nn.Module):
         
         # Global pooling (spatially)
         self.c2b_scale_stride = self.c_scale_stride
-        self.c2b_num_scales_pooled = len(self.c1_sp_kernel_sizes)  # all of them
+        self.c2b_num_scales_pooled = ip_scales-1 #len(self.c1_sp_kernel_sizes)  # all of them
 
         # Global pooling (spatially)
         self.c3_scale_stride = self.c_scale_stride
-        self.c3_num_scales_pooled = len(self.c2_sp_kernel_sizes)  # all of them
+        self.c3_num_scales_pooled = ip_scales-2 #len(self.c2_sp_kernel_sizes)  # all of them
 
         ########################################################
         # Feature extractors (in the order of the table in Figure 1)
@@ -756,6 +995,8 @@ class HMAX_IP_basic_single_band(nn.Module):
                                         # nn.ReLU(True),
                                         nn.Linear(256, num_classes)  # fc3
                                         )
+
+        # self.overall_max_scale_index = []
 
 
     def get_s4_in_channels(self):
@@ -798,6 +1039,9 @@ class HMAX_IP_basic_single_band(nn.Module):
         if self.ip_scales == 1:
             image_scales_down = [base_image_size]
             image_scales_up = []
+        elif self.ip_scales == 2:
+            image_scales_up = [base_image_size, np.ceil(base_image_size*(2**(1/scale)))]
+            image_scales_down = []
         else:
             image_scales_down = [np.ceil(base_image_size/(2**(i/scale))) for i in range(int(np.ceil(self.ip_scales/2)))]
             image_scales_up = [np.ceil(base_image_size*(2**(i/scale))) for i in range(1, int(np.ceil(self.ip_scales/2)))]
@@ -808,7 +1052,7 @@ class HMAX_IP_basic_single_band(nn.Module):
         index_sort = index_sort[::-1]
         self.image_scales = [image_scales[i_s] for i_s in index_sort]
 
-        print('image_scales : ',self.image_scales)
+        # print('image_scales : ',self.image_scales)
 
         if same_scale_viz:
             base_image_size = base_scale
@@ -864,13 +1108,13 @@ class HMAX_IP_basic_single_band(nn.Module):
         x_pyramid = self.make_ip(x, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Out 17 Scales x BxCxHxW --> C = 3
 
         ###############################################
-        s1_maps = self.s1(x_pyramid, self.MNIST_Scale, batch_idx) # Out 17 Scales x BxCxHxW --> C = 4
-        c1_maps = self.c1(s1_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale, c1_sp_kernel_sizes = self.c1_sp_kernel_sizes, c2_sp_kernel_sizes = self.c2_sp_kernel_sizes)  # Out 16 Scales x BxCxHxW --> C = 4
+        s1_maps = self.s1(x_pyramid, self.MNIST_Scale, batch_idx, prj_name = self.prj_name) # Out 17 Scales x BxCxHxW --> C = 4
+        c1_maps = self.c1(s1_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale, c1_sp_kernel_sizes = self.c1_sp_kernel_sizes, c2_sp_kernel_sizes = self.c2_sp_kernel_sizes, image_scales = self.image_scales)  # Out 16 Scales x BxCxHxW --> C = 4
 
         ###############################################
         # ByPass Route
         s2b_maps = self.s2b(c1_maps) # Out 15 Scales x BxCxHxW --> C = 2000
-        c2b_maps = self.c2b(s2b_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale) # Overall x BxCx1x1 --> C = 2000
+        c2b_maps, max_scale_index = self.c2b(s2b_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, base_scale = self.base_scale, image_scales = self.image_scales) # Overall x BxCx1x1 --> C = 2000
 
         ###############################################
         c2b_maps = torch.flatten(c2b_maps[0], 1) # Shape --> 1 x B x 400 x 1 x 1 
@@ -890,7 +1134,7 @@ class HMAX_IP_basic_single_band(nn.Module):
         # output = self.classifier(s4_maps)
 
 
-        return output
+        return output , max_scale_index
 
 #############################################################################
 #############################################################################
