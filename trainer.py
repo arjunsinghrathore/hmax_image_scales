@@ -70,26 +70,41 @@ if __name__ == '__main__':
     # base = pt_model.slice
 
     # Hyper-Parameters
-    IP_bool = True
-    if not(IP_bool):
-        prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
+    IP_bool = False
+    capsnet_bool = False
+    IP_capsnet_bool = True
+    if capsnet_bool:
+        prj_name = "checkpoint_CapsNet_data_shuffle_org_MNIST_data_64bs_1by4_1e4"
+    elif IP_capsnet_bool:
+        prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
+    elif IP_bool:
+        prj_name = "checkpoint_HMAX_basic_single_band_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4_continued_continued"
     else:
-        prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S1_batch_norm_S2_alpha_norm_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_looped_seperate_C1_C2_only_adaptive_mp_linear_classifier_1e5"
+        prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
 
         # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
     n_ori = 4
     n_classes = 10
 
-    if IP_bool:
+    if IP_bool or capsnet_bool or IP_capsnet_bool:
         # lr = 0.000001 # For 7 scales
         # lr = 0.00000005 # For 14 scales
-        lr = 0.00001
+        # lr = 0.00001 # Our
+        lr = 1e-4 # IP_caps
+        # lr = 1e-3 # caps
+        # lr = 0.000005 # Lindeberg?
         weight_decay = 1e-4
-        batch_size_per_gpu = 4
+        batch_size_per_gpu = 40
         num_epochs = 1000
-        ip_scales = 18 #14 #7
-        image_size = 192 #128 #192
+        ip_scales = 9 #14 #7
+        image_size = 224 #224 #128 #192
         linderberg_bool = False
+        my_data = True
+        orginal_mnist_bool = False
+        oracle_bool = False
+        argmax_bool = False
+        oracle_plot_overlap_bool = False
+        oracle_argmax_plot_overlap_bool = False
     else:
         lr = 10e-5# --> HMAX
         weight_decay = 1e-4
@@ -98,6 +113,7 @@ if __name__ == '__main__':
         ip_scales = 17
         image_size = 192 #224 # For HMAx
         linderberg_bool = False
+        my_data = True
 
 
     # Mode
@@ -141,17 +157,17 @@ if __name__ == '__main__':
     else:
         scale_datasets = [18,36,8,24,30,12,4,20,16]
 
-    train_dataset = 18
+    train_dataset = 24
     rdm_datasets = [18, 24]
     rdm_thomas_datasets = scale_datasets
 
     MNIST_Scale = train_dataset
 
     # Initializing the model
-    model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale)
+    model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool)
 
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=0-val_acc1=91.77684294871794-val_loss=0.562743636658892.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=16-val_acc1=0.9179-val_loss=0.4538898214697838.ckpt')
 
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
@@ -203,9 +219,37 @@ if __name__ == '__main__':
                            6.727: "mnist_large_scale_te10000_outsize112-112_scte6p727.h5",
                            8: "mnist_large_scale_te10000_outsize112-112_scte8p000.h5"}
 
+    my_dataset_scales = list(linderberg_test_dir.keys())
+    my_dataset_scales = [int(mds*1000) for mds in my_dataset_scales]
+
+    my_dataset_scales_temp = []
+    for mds in my_dataset_scales:
+        if mds >=2000:
+            my_dataset_scales_temp.append(mds)
+    my_dataset_scales = my_dataset_scales_temp
+
+    # my_dataset_scales = [2000, 4000, 8000]
+    print('my_dataset_scales : ',my_dataset_scales)
+
+    my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale4000/train'
+    my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale4000/val'
+    my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale'
+
+    if linderberg_bool:
+        rdm_thomas_datasets = list(linderberg_test_dir.keys())
+    elif my_data:
+        rdm_thomas_datasets = my_dataset_scales
+
     # Calling the dataloader
-    data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
-                                             linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir)
+    if my_data:
+        data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False)
+    elif orginal_mnist_bool:
+        data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                orginal_mnist_bool = orginal_mnist_bool)
+    else:
+        data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir)
 
 
     # Callbacks and Trainer
@@ -213,7 +257,7 @@ if __name__ == '__main__':
                             monitor="val_acc1",
                             dirpath="/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/" + prj_name,
                             filename="HMAX-{epoch}-{val_acc1}-{val_loss}",
-                            save_top_k=8,
+                            save_top_k=15,
                             mode="max",
                         )
 
@@ -225,7 +269,12 @@ if __name__ == '__main__':
         source_files=['*.py'],
     )
     
-    trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback]) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
+    if IP_capsnet_bool:
+        print('Clipping grad norm to 0.5')
+        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], gradient_clip_val= 0.5) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
+                                                    # gradient_clip_algorithm="value") #, logger = wandb_logger)
+    else:
+        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback]) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
                                                 # gradient_clip_algorithm="value") #, logger = wandb_logger)
     # Train
     if not(test_mode or val_mode or rdm_corr or rdm_thomas):
@@ -350,87 +399,44 @@ if __name__ == '__main__':
         open_file.close()
 
 
-        for s_i, s_data in enumerate(rdm_thomas_datasets):
-
-            print('###################################################')
-            print('###################################################')
-            print('This is scale : ',s_data)
-            print('model.prj_name : ', model.prj_name)
-            print('model.HMAX.prj_name : ', model.HMAX.prj_name)
-
-            model.HMAX.MNIST_Scale = s_data
-            model.MNIST_Scale = s_data
-
-            for c_i in range(1):
+        if not(linderberg_bool or my_data):
+            for s_i, s_data in enumerate(rdm_thomas_datasets):
 
                 print('###################################################')
-                print('This is category : ',c_i)
+                print('###################################################')
+                print('This is scale : ',s_data)
+                print('model.prj_name : ', model.prj_name)
+                print('model.HMAX.prj_name : ', model.HMAX.prj_name)
 
-                model.HMAX.category = c_i
+                model.HMAX.MNIST_Scale = s_data
+                model.MNIST_Scale = s_data
 
-                testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
-                if same_scale_viz:
-                    testdir_scale_cat = testdir + str(train_dataset) + "/test_viz/" + str(c_i)
-                else:
-                    testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
-                # Calling the dataloader
-                data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale_cat, batch_size_per_gpu, n_gpus, False, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz)
-
-                if s_i == 0:
-                    model.first_scale_test = True
-                else:
-                    model.first_scale_test = False
-
-                #
-                trainer.test(model, data)
-
-        print('###################################################')
-        print('###################################################')
-        print('Now Loading the Data for sending to RDM Corr')
-
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", model.prj_name)
-        # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
-        # os.makedirs(job_dir, exist_ok=True)
-        file_name = os.path.join(job_dir, "filters_data.pkl")
-
-        open_file = open(file_name, "rb")
-        filters_data = pickle.load(open_file)
-        print('filters_data : ',filters_data.keys())
-        open_file.close()
-
-        stage_list = ['c1', 'c2', 'c2b', 'c3']
-
-        for stage in stage_list:
-            for s_i, s_data in enumerate(rdm_thomas_datasets):
-                # if s_i == len(rdm_thomas_datasets)-1:
-                #     continue
                 for c_i in range(1):
-                    key_name = stage + '_scale_' + str(s_data) + '_cat_' + str(c_i)
-                    temp_data = filters_data[key_name][:8]
-
-                    base_key_name = stage + '_scale_' + str(image_size) + '_cat_' + str(c_i)
-                    # base_key_name = stage + '_scale_' + str(rdm_thomas_datasets[s_i+1]) + '_cat_' + str(c_i)
-                    base_temp_data = filters_data[base_key_name][:8]
 
                     print('###################################################')
-                    print('key_name : ', key_name, ' : Shape : ', temp_data.shape)
-                    print('base_key_name : ', base_key_name, ' : Shape : ', base_temp_data.shape)
+                    print('This is category : ',c_i)
 
-                    # rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
-                    rdm_corr_scales_func(base_temp_data, temp_data, s_data, len(rdm_thomas_datasets), job_dir, stage)
+                    model.HMAX.category = c_i
 
-                    
+                    testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
+                    if same_scale_viz:
+                        testdir_scale_cat = testdir + str(train_dataset) + "/test_viz/" + str(c_i)
+                    else:
+                        testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
+                    # Calling the dataloader
+                    data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale_cat, batch_size_per_gpu, \
+                            n_gpus, False, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz, linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir, linderberg_test = linderberg_bool)
 
-            print('###################################################')
+                    if s_i == 0:
+                        model.first_scale_test = True
+                    else:
+                        model.first_scale_test = False
 
-    # Test
-    else:
-        # model.prj_name = model.prj_name + "_ivan_test"
-        # model.HMAX.prj_name = model.HMAX.prj_name + "_ivan_test"
-        # prj_name = prj_name + "_ivan_test"
-    
-        if not(linderberg_bool):
-            for s_i, s_data in enumerate(scale_datasets):
+                    #
+                    trainer.test(model, data)
+        
+        elif my_data:
+            for s_i, s_data in enumerate(my_dataset_scales):
 
                 print('###################################################')
                 print('###################################################')
@@ -439,22 +445,18 @@ if __name__ == '__main__':
                 model.HMAX.MNIST_Scale = s_data
                 model.MNIST_Scale = s_data
 
-                if same_scale_viz:
-                    testdir_scale = testdir + str(train_dataset) + "/test_viz"
-                else:
-                    testdir_scale = testdir + str(s_data) + "/test"
+                my_dataset_testdir_scale = my_dataset_testdir + str(s_data) + "/test"
                 # Calling the dataloader
-                data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale, batch_size_per_gpu, n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz)
+                data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                            my_dataset_scales = my_dataset_scales, test_mode = True)
 
-                #
-                # + str(s_data)
-                # prj_name = prj_name + "_ivan_test"
                 if s_i == 0:
                     model.first_scale_test = True
                 else:
                     model.first_scale_test = False
                 #
                 trainer.test(model, data)
+        
         else:
             l_i = 0
             for l_data in linderberg_test_dir:
@@ -486,37 +488,294 @@ if __name__ == '__main__':
                 #
                 trainer.test(model, data)
 
-        # #
-        if not(same_scale_viz):
-            job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", model.prj_name)
+
+
+        print('###################################################')
+        print('###################################################')
+        print('Now Loading the Data for sending to RDM Corr')
+
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", model.prj_name)
+        # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
+        # os.makedirs(job_dir, exist_ok=True)
+        file_name = os.path.join(job_dir, "filters_data.pkl")
+
+        open_file = open(file_name, "rb")
+        filters_data = pickle.load(open_file)
+        print('filters_data : ',filters_data.keys())
+        open_file.close()
+
+        # stage_list = ['c1', 'c2', 'c2b', 'c3']
+        stage_list = ['c1', 'c2b']
+
+        for stage in stage_list:
+            for s_i, s_data in enumerate(rdm_thomas_datasets):
+                # if s_i == len(rdm_thomas_datasets)-1:
+                #     continue
+                for c_i in range(1):
+                    if not(linderberg_bool or my_data):
+                        key_name = stage + '_scale_' + str(s_data) + '_cat_' + str(c_i)
+                    else:
+                        # s_data = int(s_data*1000)
+                        key_name = stage + '_scale_' + str(int(s_data*1000))
+                    temp_data = filters_data[key_name][:8]
+
+                    if not(linderberg_bool or my_data):
+                        base_key_name = stage + '_scale_' + str(image_size) + '_cat_' + str(c_i)
+                    else:
+                        base_key_name = stage + '_scale_' + str(int(rdm_thomas_datasets[int(len(rdm_thomas_datasets)//2)]*1000)) 
+                    # base_key_name = stage + '_scale_' + str(rdm_thomas_datasets[s_i+1]) + '_cat_' + str(c_i)
+                    base_temp_data = filters_data[base_key_name][:8]
+
+                    print('###################################################')
+                    print('key_name : ', key_name, ' : Shape : ', temp_data.shape)
+                    print('base_key_name : ', base_key_name, ' : Shape : ', base_temp_data.shape)
+
+                    # rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
+                    if my_data:
+                        s_data = s_data/1000.0
+
+                    rdm_corr_scales_func(base_temp_data, temp_data, s_data, len(rdm_thomas_datasets), job_dir, stage, (linderberg_bool or my_data))
+
+                    
+
+            print('###################################################')
+
+    # Test
+    else:
+        prj_name_save = prj_name
+
+        if not(oracle_plot_overlap_bool or oracle_argmax_plot_overlap_bool):
+            if not(linderberg_bool or my_data):
+                for s_i, s_data in enumerate(scale_datasets):
+
+                    print('###################################################')
+                    print('###################################################')
+                    print('This is scale : ',s_data)
+
+                    model.HMAX.MNIST_Scale = s_data
+                    model.MNIST_Scale = s_data
+
+                    if same_scale_viz:
+                        testdir_scale = testdir + str(train_dataset) + "/test_viz"
+                    else:
+                        testdir_scale = testdir + str(s_data) + "/test"
+                    # Calling the dataloader
+                    data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, testdir_scale, batch_size_per_gpu, n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz)
+
+                    #
+                    # + str(s_data)
+                    # prj_name = prj_name + "_ivan_test"
+                    if s_i == 0:
+                        model.first_scale_test = True
+                    else:
+                        model.first_scale_test = False
+                    #
+                    trainer.test(model, data)
+            elif my_data:
+                for s_i, s_data in enumerate(my_dataset_scales):
+
+                    print('###################################################')
+                    print('###################################################')
+                    print('This is scale : ',s_data)
+
+                    model.HMAX.MNIST_Scale = s_data
+                    model.MNIST_Scale = s_data
+
+                    if same_scale_viz:
+                        my_dataset_testdir_scale = testdir + str(2000) + "/test_viz"
+                    else:
+                        my_dataset_testdir_scale = my_dataset_testdir + str(s_data) + "/test"
+                    
+
+                    if oracle_bool:
+                        ########################################################################
+                        ########################################################################
+                        print('\n###################################################')
+                        print('Oracle Version')
+                        # Calling the dataloader oracle version
+                        model.prj_name = prj_name_save + "_oracle"
+                        model.HMAX.prj_name = prj_name_save + "_oracle"
+                        prj_name = prj_name_save + "_oracle"
+
+                        data = dataloader_lightning.dataa_loader_my(int(image_size/(s_data/4000)), my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                        model.orcale_bool = True
+
+                        # + str(s_data)
+                        # prj_name = prj_name + "_ivan_test"
+                        if s_i == 0:
+                            model.first_scale_test = True
+                        else:
+                            model.first_scale_test = False
+                        #
+                        trainer.test(model, data)
+                    else:
+                        print('\n###################################################')
+                        print('Non Oracle Version')
+                        # Calling the dataloader
+
+                        if argmax_bool:
+                            model.prj_name = prj_name_save + "_argmax"
+                            model.HMAX.prj_name = prj_name_save + "_argmax"
+                            prj_name = prj_name_save + "_argmax"
+
+                        data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+
+                        model.orcale_bool = False
+
+                        #
+                        # + str(s_data)
+                        # prj_name = prj_name + "_ivan_test"
+                        if s_i == 0:
+                            model.first_scale_test = True
+                        else:
+                            model.first_scale_test = False
+                        #
+                        trainer.test(model, data)
+            else:
+                l_i = 0
+                for l_data in linderberg_test_dir:
+
+                    print('###################################################')
+                    print('###################################################')
+                    print('This is l_data : ',l_data)
+
+                    model.HMAX.MNIST_Scale = l_data
+                    model.MNIST_Scale = l_data
+
+                    l_h5_file = linderberg_test_dir[l_data]
+
+                    linderberg_dir = "/cifs/data/tserre_lrs/projects/prj_hmax/data/mnist_scale/Linderberg_Data/" + l_h5_file
+                    # Calling the dataloader
+                    data = dataloader_lightning.dataa_loader(image_size if not(same_scale_viz) else s_data, traindir, valdir, linderberg_dir, batch_size_per_gpu, \
+                                                            n_gpus, True, featur_viz = featur_viz, same_scale_viz = same_scale_viz, \
+                                                            linderberg_bool = linderberg_bool, linderberg_dir = linderberg_dir, linderberg_test = True)
+
+                    #
+                    # + str(s_data)
+                    # prj_name = prj_name + "_ivan_test"
+                    if l_i == 0:
+                        model.first_scale_test = True
+                    else:
+                        model.first_scale_test = False
+                    
+                    l_i += 1
+                    #
+                    trainer.test(model, data)
+
+        
+        if not(same_scale_viz or oracle_bool or argmax_bool or featur_viz or visualize_mode):
+            job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save)
             os.makedirs(job_dir, exist_ok=True)
             file_name = os.path.join(job_dir, "scale_test_acc.pkl")
             open_file = open(file_name, "rb")
             test_accs = pickle.load(open_file)
             open_file.close()
 
-            index_sort = np.argsort(scale_datasets)
-            scale_datasets = np.array(scale_datasets)[index_sort]
-            test_accs = np.array(test_accs)[index_sort]
+            if oracle_plot_overlap_bool:
+                job_dir_orc = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save + "_oracle")
+                os.makedirs(job_dir_orc, exist_ok=True)
+                file_name_orc = os.path.join(job_dir_orc, "scale_test_acc.pkl")
+                open_file_orc = open(file_name_orc, "rb")
+                test_accs_orc = pickle.load(open_file_orc)
+                open_file_orc.close()
+            elif oracle_argmax_plot_overlap_bool:
+                # Oracle
+                job_dir_orc = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save + "_oracle")
+                os.makedirs(job_dir_orc, exist_ok=True)
+                file_name_orc = os.path.join(job_dir_orc, "scale_test_acc.pkl")
+                open_file_orc = open(file_name_orc, "rb")
+                test_accs_orc = pickle.load(open_file_orc)
+                open_file_orc.close()
+                # Argmax
+                job_dir_arg = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save + "_argmax")
+                os.makedirs(job_dir_arg, exist_ok=True)
+                file_name_arg = os.path.join(job_dir_arg, "scale_test_acc.pkl")
+                open_file_arg = open(file_name_arg, "rb")
+                test_accs_arg = pickle.load(open_file_arg)
+                open_file_arg.close()
 
-            fig = plt.figure(figsize=(18,10), dpi=250)
-            ax = fig.add_subplot(111)
-            ax.scatter(scale_datasets, test_accs)
-            ax.set_xlabel(
-            "Scales",
-            fontweight="bold",
-            fontsize=15.0)
-            ax.set_ylabel(
-            "Accuracy",
-            fontweight="bold",
-            fontsize=15.0,)
-            for xy in zip(scale_datasets, test_accs):                                       # <--
-                ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data') # <--
+
+
+            if linderberg_bool or my_data:
+                test_accs = np.array(test_accs)
+
+                fig = plt.figure(figsize=(45,10), dpi=250)
+                ax = fig.add_subplot(111)
+                if my_data:
+                    scales_list = [mds/1000 for mds in my_dataset_scales]
+                else:
+                    scales_list = linderberg_test_dir.keys()
+
+                ax.scatter(list(scales_list), test_accs, s=100, c='b', label='Max Over Scales')
+                # if not(oracle_plot_overlap_bool):
+                for xy in zip(list(scales_list), test_accs):                                       # <--
+                    ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+
+                if oracle_plot_overlap_bool:
+                    test_accs_orc = np.array(test_accs_orc)
+
+                    ax.scatter(list(scales_list), test_accs_orc, s=100, c='r', label='Oracle Case -  Single Scale Test')
+                    for xy in zip(list(scales_list), test_accs_orc):                                       # <--
+                        ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+                elif oracle_argmax_plot_overlap_bool:
+                    # Oracle
+                    test_accs_orc = np.array(test_accs_orc)
+
+                    ax.scatter(list(scales_list), test_accs_orc, s=100, c='r', label='Oracle Case -  Single Scale Test')
+                    for xy in zip(list(scales_list), test_accs_orc):                                       # <--
+                        ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+
+                    # Argmax
+                    test_accs_arg = np.array(test_accs_arg)
+
+                    ax.scatter(list(scales_list), test_accs_arg, s=100, c='g', label='Argmax Case')
+                    for xy in zip(list(scales_list), test_accs_arg):                                       # <--
+                        ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+
+                
+                ax.legend(loc='lower left', fontsize=30)
+                ax.set_xscale('log')
+                ax.set_xlabel(
+                "Scales",
+                fontweight="bold",
+                fontsize=40.0)
+                ax.set_ylabel(
+                "Accuracy",
+                fontweight="bold",
+                fontsize=40.0,)
+
+                ax.tick_params(axis='both', labelsize=25)
+
+            else:
+                index_sort = np.argsort(scale_datasets)
+                scale_datasets = np.array(scale_datasets)[index_sort]
+                test_accs = np.array(test_accs)[index_sort]
+
+                fig = plt.figure(figsize=(18,10), dpi=250)
+                ax = fig.add_subplot(111)
+                ax.scatter(scale_datasets, test_accs)
+                ax.set_xlabel(
+                "Scales",
+                fontweight="bold",
+                fontsize=15.0)
+                ax.set_ylabel(
+                "Accuracy",
+                fontweight="bold",
+                fontsize=15.0,)
+                for xy in zip(scale_datasets, test_accs):                                       # <--
+                    ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data') # <--
 
             ax.grid()
 
             job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/scale_invar_plots"
-            fig.savefig(os.path.join(job_dir, prj_name))
+            if oracle_plot_overlap_bool:
+                fig.savefig(os.path.join(job_dir, prj_name_save + '_oracle_overlap'))
+            elif oracle_argmax_plot_overlap_bool:
+                fig.savefig(os.path.join(job_dir, prj_name_save + '_oracle_argmax_overlap'))
+            else:
+                fig.savefig(os.path.join(job_dir, prj_name_save))
 
         
         # #####################################################################################################
@@ -524,7 +783,7 @@ if __name__ == '__main__':
         # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
         # # S1
         # S1_dir = os.path.join(main_dir, 'S1')
-        # S1_dir = os.path.join(S1_dir, 'prj_' + prj_name)
+        # S1_dir = os.path.join(S1_dir, 'prj_' + prj_name_save)
         # images_list = os.listdir(S1_dir)
         
         # filtered_images_list = []
@@ -563,90 +822,90 @@ if __name__ == '__main__':
 
         # ######################################################################################################
 
-        '''
-        Get feature vectors for some k image sizes and s image scales within it after the C stages.
-        Get dissimilarity matrices between the k image scales in a pairwise fashion i.e., let's say after C1 stage, the dissimilarity matrix is 
-        calculated between the s image scales feature vectors between the 1st and 2nd image size.
-        '''
+        # '''
+        # # Get feature vectors for some k image sizes and s image scales within it after the C stages.
+        # # Get dissimilarity matrices between the k image scales in a pairwise fashion i.e., let's say after C1 stage, the dissimilarity matrix is 
+        # # calculated between the s image scales feature vectors between the 1st and 2nd image size.
+        # '''
 
-        main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # C1
-        C1_dir = os.path.join(main_dir, 'C1')
-        C1_dir = os.path.join(C1_dir, 'prj_' + prj_name)
-        images_list = os.listdir(C1_dir)
+        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+        # # C1
+        # C1_dir = os.path.join(main_dir, 'C1')
+        # C1_dir = os.path.join(C1_dir, 'prj_' + prj_name_save)
+        # images_list = os.listdir(C1_dir)
         
-        filtered_images_list = []
-        for il in images_list:
-            if il.split('.')[-1] == 'npy':
-                filtered_images_list.append(il)
+        # filtered_images_list = []
+        # for il in images_list:
+        #     if il.split('.')[-1] == 'npy':
+        #         filtered_images_list.append(il)
 
-        scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        print('scales_list : ',scales_list)
-        index_sort = np.argsort(scales_list)
-        sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+        # print('scales_list : ',scales_list)
+        # index_sort = np.argsort(scales_list)
+        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
 
-        sorted_images_list = [os.path.join(C1_dir, sil) for sil in sorted_images_list]
+        # sorted_images_list = [os.path.join(C1_dir, sil) for sil in sorted_images_list]
 
-        print('sorted_images_list : ',sorted_images_list)
+        # print('sorted_images_list : ',sorted_images_list)
 
-        combined_image = np.empty((1))
-        for index, im_path in enumerate(sorted_images_list):
-            # combined_vertical_image = cv2.imread(im_path)
-            combined_vertical_image = np.load(im_path)
+        # combined_image = np.empty((1))
+        # for index, im_path in enumerate(sorted_images_list):
+        #     # combined_vertical_image = cv2.imread(im_path)
+        #     combined_vertical_image = np.load(im_path)
 
-            print('combined_image : ',combined_image.shape)
-            print('combined_vertical_image : ',combined_vertical_image.shape)
+        #     print('combined_image : ',combined_image.shape)
+        #     print('combined_vertical_image : ',combined_vertical_image.shape)
 
-            if len(combined_image.shape) == 1:
-                combined_image = combined_vertical_image
-            else:
-                combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+        #     if len(combined_image.shape) == 1:
+        #         combined_image = combined_vertical_image
+        #     else:
+        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
 
-        out_path = os.path.join(C1_dir, "filters_all.png")
-        cv2.imwrite(out_path, combined_image)
+        # out_path = os.path.join(C1_dir, "filters_all.png")
+        # cv2.imwrite(out_path, combined_image)
 
-        plt.figure(figsize = (50, 100))
-        plt.imshow(combined_image)
-        plt.savefig(out_path.split('.')[0] + '_plt.png')
+        # plt.figure(figsize = (50, 100))
+        # plt.imshow(combined_image)
+        # plt.savefig(out_path.split('.')[0] + '_plt.png')
 
         # ######################################################################################################
 
-        main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # C2
-        C2_dir = os.path.join(main_dir, 'C2')
-        C2_dir = os.path.join(C2_dir, 'prj_' + prj_name)
-        images_list = os.listdir(C2_dir)
+        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+        # # C2
+        # C2_dir = os.path.join(main_dir, 'C2')
+        # C2_dir = os.path.join(C2_dir, 'prj_' + prj_name_save)
+        # images_list = os.listdir(C2_dir)
         
-        filtered_images_list = []
-        for il in images_list:
-            if il.split('.')[-1] == 'npy':
-                filtered_images_list.append(il)
+        # filtered_images_list = []
+        # for il in images_list:
+        #     if il.split('.')[-1] == 'npy':
+        #         filtered_images_list.append(il)
 
-        scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        print('scales_list : ',scales_list)
-        index_sort = np.argsort(scales_list)
-        sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+        # print('scales_list : ',scales_list)
+        # index_sort = np.argsort(scales_list)
+        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
 
-        sorted_images_list = [os.path.join(C2_dir, sil) for sil in sorted_images_list]
+        # sorted_images_list = [os.path.join(C2_dir, sil) for sil in sorted_images_list]
 
-        print('sorted_images_list : ',sorted_images_list)
+        # print('sorted_images_list : ',sorted_images_list)
 
-        combined_image = np.empty((1))
-        for index, im_path in enumerate(sorted_images_list):
-            # combined_vertical_image = cv2.imread(im_path)
-            combined_vertical_image = np.load(im_path)
+        # combined_image = np.empty((1))
+        # for index, im_path in enumerate(sorted_images_list):
+        #     # combined_vertical_image = cv2.imread(im_path)
+        #     combined_vertical_image = np.load(im_path)
 
-            print('combined_image : ',combined_image.shape)
-            print('combined_vertical_image : ',combined_vertical_image.shape)
+        #     print('combined_image : ',combined_image.shape)
+        #     print('combined_vertical_image : ',combined_vertical_image.shape)
 
-            if len(combined_image.shape) == 1:
-                combined_image = combined_vertical_image
-            else:
-                combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+        #     if len(combined_image.shape) == 1:
+        #         combined_image = combined_vertical_image
+        #     else:
+        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
 
-        out_path = os.path.join(C2_dir, "filters_all.png")
-        cv2.imwrite(out_path, combined_image)
+        # out_path = os.path.join(C2_dir, "filters_all.png")
+        # cv2.imwrite(out_path, combined_image)
 
-        plt.figure(figsize = (50, 100))
-        plt.imshow(combined_image)
-        plt.savefig(out_path.split('.')[0] + '_plt.png')
+        # plt.figure(figsize = (50, 100))
+        # plt.imshow(combined_image)
+        # plt.savefig(out_path.split('.')[0] + '_plt.png')
