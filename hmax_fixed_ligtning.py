@@ -44,7 +44,13 @@ from scipy.ndimage.filters import correlate
 # from hmax_models.hmax_changes import * 
 from hmax_models.hmax_ip import * 
 # from hmax_models.hmax_ip_basic import * 
-from hmax_models.hmax_ivan import HMAX_latest_slim, HMAX_latest
+from hmax_models.hmax_ivan import HMAX_latest_slim
+
+from hmax_models.hmax_ip_basic_single_band import HMAX_IP_basic_single_band
+
+from hmax_models.hmax_ip_basic_single_band_caps import HMAX_IP_basic_single_band_caps
+
+from hmax_models.CapsNet import CapsNet
 
 import argparse
 import os
@@ -54,6 +60,8 @@ import time
 import warnings
 
 from pytorch_lightning import Trainer, seed_everything
+
+# torch.autograd.set_detect_anomaly(True)
 
 seed_everything(42, workers=True)
 # Seeds
@@ -66,12 +74,13 @@ seed_everything(42, workers=True)
 
 class HMAX_trainer(pl.LightningModule):
     def __init__(self, prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool = False, visualize_mode = False, \
-                 MNIST_Scale = None, first_scale_test = False):
+                 MNIST_Scale = None, first_scale_test = False, capsnet_bool = False, IP_capsnet_bool = False):
         super().__init__()
         
         self.parameter_dict = {'prj_name':prj_name, 'n_ori':n_ori, 'n_classes':n_classes, \
                                 'lr':lr, 'weight_decay':weight_decay, 'ip_scales':ip_scales, \
-                                'first_scale_test':first_scale_test, 'visualize_mode':visualize_mode, 'MNIST_Scale':MNIST_Scale}
+                                'first_scale_test':first_scale_test, 'visualize_mode':visualize_mode, \
+                                'MNIST_Scale':MNIST_Scale, 'capsnet_bool':capsnet_bool, 'IP_capsnet_bool':IP_capsnet_bool}
 
         print('self.parameter_dict : ',self.parameter_dict)
 
@@ -86,21 +95,38 @@ class HMAX_trainer(pl.LightningModule):
         self.visualize_mode = visualize_mode
         self.MNIST_Scale = MNIST_Scale
 
+        self.capsnet_bool = capsnet_bool
+        self.IP_capsnet_bool = IP_capsnet_bool
+
         ########################## While Testing ##########################
         
         ###################################################################
 
-        if not self.IP_bool:
+        if self.capsnet_bool:
+            self.CapsuleNet = CapsNet()
+        elif self.IP_capsnet_bool:
+            self.HMAX = HMAX_IP_basic_single_band_caps(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+        elif not self.IP_bool:
             # self.HMAX = HMAX(n_ori=self.n_ori,num_classes=self.n_classes)
             self.HMAX = HMAX_latest_slim(n_ori=self.n_ori,num_classes=self.n_classes)
+            # self.HMAX = HMAX_latest(n_ori=self.n_ori,num_classes=self.n_classes)
         else:
-            self.HMAX = HMAX_IP(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-                                visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+            # self.HMAX = HMAX_IP(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+            #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+
+            # self.HMAX = HMAX_IP_sep_ideal(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                # visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
             # self.HMAX = HMAX_IP_basic(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes)
+
+            self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
 
         # define loss function (criterion) and optimizer
         self.criterion = nn.CrossEntropyLoss(reduce = False)
+
+        self.overall_max_scale_index = []
 
 
         # Val Loss
@@ -121,16 +147,19 @@ class HMAX_trainer(pl.LightningModule):
         torch.nn.functional.conv2d(torch.zeros(s, s, s, s, device=dev), torch.zeros(s, s, s, s, device=dev))
 
 
-    def forward(self, x, batch_idx = None):
+    def forward(self, x, batch_idx = None, target = None):
 
         
         # if self.conv_init:
         #     self.force_cudnn_initialization()
         #     self.conv_init = False
-        
-        hmx_out = self.HMAX(x, batch_idx)
 
-        return hmx_out
+        if self.capsnet_bool:
+            caps_out = self.CapsuleNet(x, target)
+            return caps_out
+        else:
+            hmx_out = self.HMAX(x, batch_idx)
+            return hmx_out
     
     #pytorch lighning functions
     def configure_optimizers(self):
@@ -185,37 +214,99 @@ class HMAX_trainer(pl.LightningModule):
         # print('images : ',images.dtype)
 
         h_w = images.shape[-1]
+        n_c = images.shape[1]
         if len(images.shape) == 4:
-            images = images.reshape(-1, 3, h_w, h_w)
+            images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
 
         ########################
-        output = self(images)
+        if self.capsnet_bool:
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
+
+            images = images[:,0:1]
+
+            output, reconstructions, masked = self(images, target = target_eye)
+
+            loss = self.CapsuleNet.loss(images, output, target_eye, reconstructions)
+
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+            # acc1 = torch.tensor(acc1)
+
+        elif self.IP_capsnet_bool:
+
+            # Getting Target Eye
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
+
+            # With recon
+            images = images[:,0:1]
+
+            # With recon
+            output, reconstructions = self(images, target = target_eye)
+            # No recon
+            # output = self(images)
+
+            # Loss
+            # With recon
+            loss = self.HMAX.loss(images, output, target_eye, reconstructions)
+            # No recon
+            # loss = self.HMAX.margin_loss(output, target_eye)
+
+            # Getting masked for calculating acc
+            # FInding the length of the vector which is the probability
+            classes = torch.sqrt((output ** 2).sum(2))
+            classes = F.softmax(classes)
+            
+            _, max_length_indices = classes.max(dim=1)
+            masked = Variable(torch.sparse.torch.eye(10))
+            if True:
+                masked = masked.cuda()
+            masked = masked.index_select(dim=0, index=max_length_indices.squeeze(1).data)
+
+            # Getting accuracy
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+
+        else:
+            output = self(images)
+
+            ########################
+            loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            loss = torch.mean(loss)
 
         ########################
-        loss = self.criterion(output, target)
-
-        acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
-
-        ########################
-        loss = torch.mean(loss)
-
-        ########################
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+        # self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
         # self.log("train_performance", {"acc1": acc1, "acc5": acc5})
         self.log('train_acc1', acc1, on_step=True, on_epoch=True, prog_bar=True)
 
         return loss #{'output' : output, 'target' : target} 
 
-    # def training_step_end(self, out_tar):
-
-    #     loss = criterion(out_tar['output'], out_tar['target'])
-
-    #     acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
-    #     self.log('train_loss', loss,on_step=False, on_epoch=True,prog_bar=True)
+    def training_step_end(self, losses):
         
-    #     return loss
+        # for name, param in self.named_parameters():
+        #     if name == 'HMAX.s2b.s_1.weight':
+        #         # print('name : ',name)
+        #         param.data = param.data / ((8/4)**2)
+        #     elif name == 'HMAX.s2b.s_2.weight':
+        #         # print('name : ',name)
+        #         param.data = param.data / ((12/4)**2)
+        #     elif name == 'HMAX.s2b.s_3.weight':
+        #         # print('name : ',name)
+        #         param.data = param.data / ((16/4)**2)
+        
+
+        
+        losses = torch.mean(losses)
+
+        self.log('train_loss', losses,on_step=True, on_epoch=True,prog_bar=True)
+        
+        return losses
 
 
     def validation_step(self, batch, batch_idx):
@@ -223,8 +314,9 @@ class HMAX_trainer(pl.LightningModule):
         images, target = batch
 
         h_w = images.shape[-1]
+        n_c = images.shape[1]
         if len(images.shape) == 4:
-            images = images.reshape(-1, 3, h_w, h_w)
+            images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
 
         # print('target : ',target.shape)
@@ -233,23 +325,99 @@ class HMAX_trainer(pl.LightningModule):
         # print('images : ',images.dtype)
 
         ########################
-        output = self(images)
+        if self.capsnet_bool:
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
 
-        ########################
-        val_loss = self.criterion(output, target)
+            images = images[:,0:1]
 
-        acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+            output, reconstructions, masked = self(images, target = None)
+
+            # print('images : ',images.shape)
+            # print('target : ',target.shape)
+            # print('output : ',output.shape)
+            # print('reconstructions : ',reconstructions.shape)
+            # print('masked : ',masked.shape)
+
+            val_loss = self.CapsuleNet.loss(images, output, target_eye, reconstructions)
+
+            # print('val_loss : ',[val_loss.item()])
+
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+
+            acc1_list = [acc1]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+
+        elif self.IP_capsnet_bool:
+
+            # Getting Target Eye
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
+
+            # With recon
+            images = images[:,0:1]
+
+            # With recon
+            output, reconstructions = self(images, target = None)
+            # No recon
+            # output = self(images)
+
+            # print('output : ',output.shape)
+            # print('reconstructions : ',reconstructions.shape)
+
+            # Loss
+            # With recon
+            val_loss = self.HMAX.loss(images, output, target_eye, reconstructions)
+            # No recon
+            # val_loss = self.HMAX.margin_loss(output, target_eye)
+
+            # Getting masked for calculating acc
+            # FInding the length of the vector which is the probability
+            classes = torch.sqrt((output ** 2).sum(2))
+            classes = F.softmax(classes)
+            
+            _, max_length_indices = classes.max(dim=1)
+            masked = Variable(torch.sparse.torch.eye(10))
+            if True:
+                masked = masked.cuda()
+            masked = masked.index_select(dim=0, index=max_length_indices.squeeze(1).data)
+
+            # Getting accuracy
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+                                
+            #
+            acc1_list = [acc1]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+
+        else:
+            output = self(images)
+
+            ########################
+            val_loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            val_loss = torch.mean(val_loss)
+
+            acc1_list = acc1.cpu().tolist()
+            self.acc1_list += acc1_list
+            acc5_list = acc5.cpu().tolist()
+            self.acc5_list += acc5_list
 
         ########################
         time.sleep(1)
-        val_loss_list = val_loss.cpu().tolist()
+        # val_loss_list = val_loss.cpu().tolist()
+        val_loss_list = [val_loss.item()]
+
         # print('val_loss_list : ',val_loss_list) 
         self.val_losses += val_loss_list
-
-        acc1_list = acc1.cpu().tolist()
-        self.acc1_list += acc1_list
-        acc5_list = acc5.cpu().tolist()
-        self.acc5_list += acc5_list
 
         ###########################
         # val_loss = torch.mean(val_loss)
@@ -309,8 +477,9 @@ class HMAX_trainer(pl.LightningModule):
         images, target = batch
 
         h_w = images.shape[-1]
+        n_c = images.shape[1]
         if len(images.shape) == 4:
-            images = images.reshape(-1, 3, h_w, h_w)
+            images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
 
         # print('target valueeeees : ',target)
@@ -320,25 +489,108 @@ class HMAX_trainer(pl.LightningModule):
         # print('images : ',images.dtype)
 
         ########################
-        output = self(images, batch_idx)
+        if self.capsnet_bool:
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
 
-        # return 0
+            images = images[:,0:1]
 
-        ########################
-        val_loss = self.criterion(output, target)
+            output, reconstructions, masked = self(images, target = None)
 
-        acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+            # print('images : ',images.shape)
+            # print('target : ',target.shape)
+            # print('output : ',output.shape)
+            # print('reconstructions : ',reconstructions.shape)
+            # print('masked : ',masked.shape)
 
-        ########################
-        time.sleep(1)
-        val_loss_list = val_loss.cpu().tolist()
-        # print('val_loss_list : ',val_loss_list) 
-        self.val_losses += val_loss_list
+            val_loss = self.CapsuleNet.loss(images, output, target_eye, reconstructions)
 
-        acc1_list = acc1.cpu().tolist()
-        self.acc1_list += acc1_list
-        acc5_list = acc5.cpu().tolist()
-        self.acc5_list += acc5_list
+            # print('val_loss : ',[val_loss.item()])
+
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+
+            acc1_list = [acc1]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+
+        elif self.IP_capsnet_bool:
+
+            # Getting Target Eye
+            target_eye = torch.sparse.torch.eye(10).cuda()
+            target_eye = target_eye.index_select(dim=0, index=target)
+
+            # With recon
+            images = images[:,0:1]
+
+            # With recon
+            output, reconstructions, max_scale_index = self(images, target = None)
+            # No recon
+            # output = self(images)
+
+            # print('output : ',output.shape)
+            # print('reconstructions : ',reconstructions.shape)
+
+            # Loss
+            # With recon
+            val_loss = self.HMAX.loss(images, output, target_eye, reconstructions)
+            # No recon
+            # val_loss = self.HMAX.margin_loss(output, target_eye)
+
+            # Getting masked for calculating acc
+            # FInding the length of the vector which is the probability
+            classes = torch.sqrt((output ** 2).sum(2))
+            classes = F.softmax(classes)
+            
+            _, max_length_indices = classes.max(dim=1)
+            masked = Variable(torch.sparse.torch.eye(10))
+            if True:
+                masked = masked.cuda()
+            masked = masked.index_select(dim=0, index=max_length_indices.squeeze(1).data)
+
+            # Getting accuracy
+            acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
+                                   np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
+                                
+            ########################
+            time.sleep(1)
+            acc1_list = [acc1]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+            # val_loss_list = val_loss.cpu().tolist()
+            val_loss_list = [val_loss.item()]
+
+            # print('val_loss_list : ',val_loss_list) 
+            self.val_losses += val_loss_list
+
+            self.overall_max_scale_index += max_scale_index
+
+        else:
+
+            ########################
+            output, max_scale_index = self(images, batch_idx)
+
+            # return 0
+
+            ########################
+            val_loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            time.sleep(1)
+            val_loss_list = val_loss.cpu().tolist()
+            # print('val_loss_list : ',val_loss_list) 
+            self.val_losses += val_loss_list
+
+            acc1_list = acc1.cpu().tolist()
+            self.acc1_list += acc1_list
+            acc5_list = acc5.cpu().tolist()
+            self.acc5_list += acc5_list
+
+            self.overall_max_scale_index += max_scale_index
 
         ###########################
         # val_loss = torch.mean(val_loss)
@@ -347,6 +599,23 @@ class HMAX_trainer(pl.LightningModule):
         return acc1
 
     def test_epoch_end(self,losses):
+
+        #################################
+        # Creating histogram
+        fig, axs = plt.subplots(1, 1,
+                                figsize =(10, 7),
+                                tight_layout = True)
+
+        # print('self.overall_max_scale_index : ',self.overall_max_scale_index)
+        print('self.overall_max_scale_index len : ',len(self.overall_max_scale_index))
+        
+        axs.hist(self.overall_max_scale_index, bins = 20)
+
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_argmax_hist", self.prj_name)
+        os.makedirs(job_dir, exist_ok=True)
+        file_name = os.path.join(job_dir, f'scale_{self.HMAX.MNIST_Scale}.png')
+        fig.savefig(os.path.join(job_dir, file_name))
+        #################################
 
         losses = self.val_losses
         losses = np.array(losses)
@@ -411,6 +680,7 @@ class HMAX_trainer(pl.LightningModule):
         self.val_losses = []
         self.acc1_list = []
         self.acc5_list = []
+        self.overall_max_scale_index = []
 
         
 
