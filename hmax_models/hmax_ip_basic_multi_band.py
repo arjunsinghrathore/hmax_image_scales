@@ -182,49 +182,49 @@ class S1(nn.Module):
         ############################################################################
         # RDMs
 
-        s_tensor = torch.cat(s1_maps, dim = 1)
-        s_numpy = s_tensor.cpu().numpy()
-        # s_numpy = s_numpy - np.min(s_numpy)
-        # s_numpy = s_numpy/np.max(s_numpy)
+        # s_tensor = torch.cat(s1_maps, dim = 1)
+        # s_numpy = s_tensor.cpu().numpy()
+        # # s_numpy = s_numpy - np.min(s_numpy)
+        # # s_numpy = s_numpy/np.max(s_numpy)
 
-        if len(s_numpy.shape) == 2:
-            s_numpy = s_numpy[:,:][None][None]
+        # if len(s_numpy.shape) == 2:
+        #     s_numpy = s_numpy[:,:][None][None]
 
-        # For rdm_corr
-        # 1
-        # s_numpy = np.mean(s_numpy, axis = (1,2,3))
-        # 2
-        # s_numpy = np.amax(s_numpy, axis = (1,2,3))
-        # 3
-        s_numpy = np.amax(s_numpy, axis = (2,3))
-        s_numpy = np.mean(s_numpy, axis = 1)
+        # # For rdm_corr
+        # # 1
+        # # s_numpy = np.mean(s_numpy, axis = (1,2,3))
+        # # 2
+        # # s_numpy = np.amax(s_numpy, axis = (1,2,3))
+        # # 3
+        # s_numpy = np.amax(s_numpy, axis = (2,3))
+        # s_numpy = np.mean(s_numpy, axis = 1)
 
-        # rdm_thomas
-        # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
-        # rdm_corr
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
-        print('self.prj_name : ', prj_name)
-        # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
-        # os.makedirs(job_dir, exist_ok=True)
-        file_name = os.path.join(job_dir, "filters_data.pkl")
+        # # rdm_thomas
+        # # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
+        # # rdm_corr
+        # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
+        # print('self.prj_name : ', prj_name)
+        # # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
+        # # os.makedirs(job_dir, exist_ok=True)
+        # file_name = os.path.join(job_dir, "filters_data.pkl")
 
-        open_file = open(file_name, "rb")
-        filters_data = pickle.load(open_file)
-        print('filters_data : ',filters_data.keys())
-        open_file.close()
+        # open_file = open(file_name, "rb")
+        # filters_data = pickle.load(open_file)
+        # print('filters_data : ',filters_data.keys())
+        # open_file.close()
 
-        key_name = 's1_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-        print('key_name : ',key_name)
+        # key_name = 's1_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+        # print('key_name : ',key_name)
         
 
-        if key_name in filters_data:
-            filters_data[key_name] = np.concatenate([filters_data[key_name], s_numpy], axis = 0)
-        else:
-            filters_data[key_name] = s_numpy
+        # if key_name in filters_data:
+        #     filters_data[key_name] = np.concatenate([filters_data[key_name], s_numpy], axis = 0)
+        # else:
+        #     filters_data[key_name] = s_numpy
         
-        open_file = open(file_name, "wb")
-        pickle.dump(filters_data, open_file)
-        open_file.close()
+        # open_file = open(file_name, "wb")
+        # pickle.dump(filters_data, open_file)
+        # open_file.close()
 
         ###################################################################
 
@@ -694,78 +694,78 @@ class C(nn.Module):
             ############################################################################
             # RDMs
 
-            c_tensor = torch.cat(c_maps, dim = 1)
-            c_numpy = c_tensor.cpu().numpy()
-            # c_numpy = c_numpy - np.min(c_numpy)
-            # c_numpy = c_numpy/np.max(c_numpy)
+            # c_tensor = torch.cat(c_maps, dim = 1)
+            # c_numpy = c_tensor.cpu().numpy()
+            # # c_numpy = c_numpy - np.min(c_numpy)
+            # # c_numpy = c_numpy/np.max(c_numpy)
 
-            # if len(c_numpy.shape) == 2:
-            #     c_numpy = c_numpy[:,:][None][None]
+            # # if len(c_numpy.shape) == 2:
+            # #     c_numpy = c_numpy[:,:][None][None]
 
-            #     # 2
-            #     # c_numpy = np.amax(c_numpy, axis = 1)
-            #     # 3
-            #     c_numpy = np.mean(c_numpy, axis = (1,2,3))
+            # #     # 2
+            # #     # c_numpy = np.amax(c_numpy, axis = 1)
+            # #     # 3
+            # #     c_numpy = np.mean(c_numpy, axis = (1,2,3))
+            # # else:
+            
+            # # For rdm_corr
+            # #1
+            # # c_numpy = np.mean(c_numpy, axis = (1,2,3))
+            # # 2
+            # # c_numpy = np.amax(c_numpy, axis = (1,2,3))
+            # # 3
+            # c_numpy = np.amax(c_numpy, axis = (2,3))
+            # c_numpy = np.mean(c_numpy, axis = 1)
+
+
+            # # rdm_thomas
+            # # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
+            # # rdm_corr
+            # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
+            # print('self.prj_name : ', prj_name)
+            # # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
+            # # os.makedirs(job_dir, exist_ok=True)
+            # file_name = os.path.join(job_dir, "filters_data.pkl")
+
+            # open_file = open(file_name, "rb")
+            # filters_data = pickle.load(open_file)
+            # print('filters_data : ',filters_data.keys())
+            # open_file.close()
+
+            # # Category not for rdm_thomas
+            # if self.c1_bool:
+            #     key_name = 'c1_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+            #     print('key_name : ',key_name)
+            # elif self.c2_bool:
+            #     key_name = 'c2_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+            #     print('key_name : ',key_name)
+            # elif self.c3_bool:
+            #     key_name = 'c3_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+            #     print('key_name : ',key_name)
+            # elif self.c2b_bool:
+            #     key_name = 'c2b_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+            #     print('key_name : ',key_name)
+
+            #     # # # Option 2
+            #     # # c_stack = torch.stack(c_maps, dim = 4)
+            #     # # to_append, _ = torch.max(c_stack, dim=4)
+            #     # # c_maps = [to_append]
+
+            #     # # Option 3
+            #     # x = torch.stack(c_maps, dim=4)
+
+            #     # # Maxpool over scale groups
+            #     # to_append, _ = torch.max(x, dim=4)
+            #     # c_maps = [to_append]
+
+            # if key_name in filters_data:
+            #     filters_data[key_name] = np.concatenate([filters_data[key_name], c_numpy], axis = 0)
             # else:
+            #     filters_data[key_name] = c_numpy
             
-            # For rdm_corr
-            #1
-            # c_numpy = np.mean(c_numpy, axis = (1,2,3))
-            # 2
-            # c_numpy = np.amax(c_numpy, axis = (1,2,3))
-            # 3
-            c_numpy = np.amax(c_numpy, axis = (2,3))
-            c_numpy = np.mean(c_numpy, axis = 1)
-
-
-            # rdm_thomas
-            # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
-            # rdm_corr
-            job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
-            print('self.prj_name : ', prj_name)
-            # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
-            # os.makedirs(job_dir, exist_ok=True)
-            file_name = os.path.join(job_dir, "filters_data.pkl")
-
-            open_file = open(file_name, "rb")
-            filters_data = pickle.load(open_file)
-            print('filters_data : ',filters_data.keys())
-            open_file.close()
-
-            # Category not for rdm_thomas
-            if self.c1_bool:
-                key_name = 'c1_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-                print('key_name : ',key_name)
-            elif self.c2_bool:
-                key_name = 'c2_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-                print('key_name : ',key_name)
-            elif self.c3_bool:
-                key_name = 'c3_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-                print('key_name : ',key_name)
-            elif self.c2b_bool:
-                key_name = 'c2b_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-                print('key_name : ',key_name)
-
-                # # # Option 2
-                # # c_stack = torch.stack(c_maps, dim = 4)
-                # # to_append, _ = torch.max(c_stack, dim=4)
-                # # c_maps = [to_append]
-
-                # # Option 3
-                # x = torch.stack(c_maps, dim=4)
-
-                # # Maxpool over scale groups
-                # to_append, _ = torch.max(x, dim=4)
-                # c_maps = [to_append]
-
-            if key_name in filters_data:
-                filters_data[key_name] = np.concatenate([filters_data[key_name], c_numpy], axis = 0)
-            else:
-                filters_data[key_name] = c_numpy
-            
-            open_file = open(file_name, "wb")
-            pickle.dump(filters_data, open_file)
-            open_file.close()
+            # open_file = open(file_name, "wb")
+            # pickle.dump(filters_data, open_file)
+            # open_file.close()
 
             
 
@@ -963,49 +963,49 @@ class S2(nn.Module):
         ############################################################################
         # RDMs
 
-        s_tensor = torch.cat(s_maps, dim = 1)
-        s_numpy = s_tensor.cpu().numpy()
-        # s_numpy = s_numpy - np.min(s_numpy)
-        # s_numpy = s_numpy/np.max(s_numpy)
+        # s_tensor = torch.cat(s_maps, dim = 1)
+        # s_numpy = s_tensor.cpu().numpy()
+        # # s_numpy = s_numpy - np.min(s_numpy)
+        # # s_numpy = s_numpy/np.max(s_numpy)
 
-        if len(s_numpy.shape) == 2:
-            s_numpy = s_numpy[:,:][None][None]
+        # if len(s_numpy.shape) == 2:
+        #     s_numpy = s_numpy[:,:][None][None]
 
-        # For rdm_corr
-        # 1
-        # s_numpy = np.mean(s_numpy, axis = (1,2,3))
-        # 2
-        # s_numpy = np.amax(s_numpy, axis = (1,2,3))
-        # 3
-        s_numpy = np.amax(s_numpy, axis = (2,3))
-        s_numpy = np.mean(s_numpy, axis = 1)
+        # # For rdm_corr
+        # # 1
+        # # s_numpy = np.mean(s_numpy, axis = (1,2,3))
+        # # 2
+        # # s_numpy = np.amax(s_numpy, axis = (1,2,3))
+        # # 3
+        # s_numpy = np.amax(s_numpy, axis = (2,3))
+        # s_numpy = np.mean(s_numpy, axis = 1)
 
-        # rdm_thomas
-        # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
-        # rdm_corr
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
-        print('self.prj_name : ', prj_name)
-        # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
-        # os.makedirs(job_dir, exist_ok=True)
-        file_name = os.path.join(job_dir, "filters_data.pkl")
+        # # rdm_thomas
+        # # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)
+        # # rdm_corr
+        # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", prj_name)
+        # print('self.prj_name : ', prj_name)
+        # # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
+        # # os.makedirs(job_dir, exist_ok=True)
+        # file_name = os.path.join(job_dir, "filters_data.pkl")
 
-        open_file = open(file_name, "rb")
-        filters_data = pickle.load(open_file)
-        print('filters_data : ',filters_data.keys())
-        open_file.close()
+        # open_file = open(file_name, "rb")
+        # filters_data = pickle.load(open_file)
+        # print('filters_data : ',filters_data.keys())
+        # open_file.close()
 
-        key_name = 's2b_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
-        print('key_name : ',key_name)
+        # key_name = 's2b_scale_' + str(int(MNIST_Scale*1000)) + '_cat_' + str(category)
+        # print('key_name : ',key_name)
         
 
-        if key_name in filters_data:
-            filters_data[key_name] = np.concatenate([filters_data[key_name], s_numpy], axis = 0)
-        else:
-            filters_data[key_name] = s_numpy
+        # if key_name in filters_data:
+        #     filters_data[key_name] = np.concatenate([filters_data[key_name], s_numpy], axis = 0)
+        # else:
+        #     filters_data[key_name] = s_numpy
         
-        open_file = open(file_name, "wb")
-        pickle.dump(filters_data, open_file)
-        open_file.close()
+        # open_file = open(file_name, "wb")
+        # pickle.dump(filters_data, open_file)
+        # open_file.close()
 
         ###################################################################
 
