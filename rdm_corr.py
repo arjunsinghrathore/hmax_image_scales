@@ -43,6 +43,24 @@ def get_scales(base_image_size, ip_scales):
 
     return image_scales
 
+def get_scales_lind(base_image_size, ip_scales):
+    # print('base_image_size : ',base_image_size)
+    scale = 4 #5
+    image_scales_down = [round(base_image_size/(2**(i/scale)), 3) for i in range(int(np.ceil(ip_scales/2)))]
+    image_scales_up = [round(base_image_size*(2**(i/scale)), 3) for i in range(1, int(np.ceil(ip_scales/2)))]
+    # image_scales_down = [base_image_size/(2**(i/scale)) for i in range(int(np.ceil(ip_scales/2)))]
+    # image_scales_up = [base_image_size*(2**(i/scale)) for i in range(1, int(np.ceil(ip_scales/2)))]
+    # image_scales = [np.ceil(base_image_size) if np.ceil(base_image_size)%2 == 0 else np.floor(base_image_size) for i in range(self.ip_scales)]
+
+    image_scales = image_scales_down + image_scales_up
+    # image_scales = [int(image_scales[i_s]) for i_s in range(len(image_scales))]
+    # self.image_scales = sorted(image_scales)
+    index_sort = np.argsort(image_scales)
+    index_sort = index_sort[::-1]
+    image_scales = [image_scales[i_s] for i_s in index_sort]
+
+    return image_scales
+
 ####################################################################
 def calc_rdms_thomas_torch(measurements_1, measurements_2):
 
@@ -62,7 +80,7 @@ scale --> scale of the scale_state_features
 n_scales --> Total number of scales
 scale_datasets
 '''
-def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage):
+def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale, n_scales, save_dir, c_stage, linderberg_bool):
 
     print('####################################################################')
     print('c_stage : ',c_stage)
@@ -73,9 +91,9 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
     # Step 1
     # Rearrange Bx(C*S)xHxW --> But then convert to ScalexBxCxHxW 
     B, C_S, H, W = scale_base_state_features.shape
-    if c_stage == 'c1':
+    if c_stage == 'c1' or c_stage == 'c2b':
         n_scales_base = n_scales-1
-    elif c_stage == 'c2' or c_stage == 'c2b':
+    elif c_stage == 'c2':
         n_scales_base = n_scales-2
     elif c_stage == 'c3':
         n_scales_base = n_scales-3
@@ -85,9 +103,9 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
 
     #
     B, C_S, H, W = scale_state_features.shape
-    if c_stage == 'c1':
+    if c_stage == 'c1' or c_stage == 'c2b':
         n_scales_i = n_scales-1
-    elif c_stage == 'c2' or c_stage == 'c2b':
+    elif c_stage == 'c2':
         n_scales_i = n_scales-2
     elif c_stage == 'c3':
         n_scales_i = n_scales-3
@@ -127,9 +145,15 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
         # scales_ch_x = [str(int(scale/(192/18))) + '_is' for _ in range(n_scales_i)]
         # scales_ch_y = ['18_is' for _ in range(n_scales_base)]
 
-        x_scales = get_scales(int(scale/(192/18)), n_scales_i+1)
+        if linderberg_bool:
+            x_scales = get_scales_lind(scale, n_scales_i+1)
+        else:
+            x_scales = get_scales(int(scale/(192/18)), n_scales_i+1)
         scales_ch_x = [f's{x_scales[xsi]}_s{x_scales[xsi+1]}' for xsi in range(len(x_scales)-1)]
-        y_scales = get_scales(18, n_scales_base+1)
+        if linderberg_bool:
+            y_scales = get_scales_lind(4, n_scales_base+1)
+        else:
+            y_scales = get_scales(18, n_scales_base+1)
         scales_ch_y = [f's{y_scales[ysi]}_s{y_scales[ysi+1]}' for ysi in range(len(y_scales)-1)]
     else:
         scales_ch_x = ['scaleband_' + str(nsi+1) for nsi in range(n_scales_i)]
@@ -153,7 +177,7 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
 
     # Let the horizontal axes labeling appear on top.
     axes.tick_params(top=True, bottom=False,
-                   labeltop=True, labelbottom=False)
+                   labeltop=True, labelbottom=False, labelsize= 6)
 
     # Rotate the tick labels and set their alignment.
     plt.setp(axes.get_xticklabels(), rotation=-30, ha="right",
@@ -164,7 +188,7 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
 
     # fig, ax, ret_val = rsatoolbox.vis.show_rdm(model_rdms, show_colorbar='figure')
 
-    img_name = 'scale_state_features_rdm_stage_' + c_stage + '_scale_' + str(int(scale/(192/18))) + '.png'
+    img_name = 'scale_state_features_rdm_stage_' + c_stage + '_scale_' + str(scale).replace('.', '_') + '.png'
     save_path = os.path.join(save_dir, img_name)
     figure.savefig(save_path, bbox_inches='tight', dpi=300)
 
@@ -175,54 +199,57 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
 # Expecting Input to be of the shape --> CatxBx(C*S)xHxW
 # And expecting that the input comes out to be for a single category already segregated
 # '''
-# def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage):
+def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage):
 
-#     print('small_state_features shape : ',small_state_features.shape)
-#     print('large_state_features shape : ',large_state_features.shape)
+    print('small_state_features shape : ',small_state_features.shape)
+    print('large_state_features shape : ',large_state_features.shape)
 
-#     # Step 2
-#     # Take mean across CxHxW 
-#     small_state_features_mean = np.mean(small_state_features, axis = (2,3,4))
-#     large_state_features_mean = np.mean(large_state_features, axis = (2,3,4))
+    # Step 2
+    # # Take mean across CxHxW 
+    # small_state_features_mean = np.mean(small_state_features, axis = (2,3,4))
+    # large_state_features_mean = np.mean(large_state_features, axis = (2,3,4))
 
-#     print('small_state_features_mean shape : ',small_state_features_mean.shape)
-#     print('large_state_features_mean shape : ',large_state_features_mean.shape)
+    small_state_features_mean = small_state_features
+    large_state_features_mean = large_state_features
 
-#     # Step 3
-#     # Z Normalize seperately for each category
-#     small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
-#     large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
+    # print('small_state_features_mean shape : ',small_state_features_mean.shape)
+    # print('large_state_features_mean shape : ',large_state_features_mean.shape)
 
-#     # Preparing data for calculating RDM
-#     small_state_features_data = rsatoolbox.data.Dataset(small_state_features_z_norm)
-#     large_state_features_data = rsatoolbox.data.Dataset(large_state_features_z_norm)
+    # Step 3
+    # Z Normalize seperately for each category
+    small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
+    large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
 
-#     # Step 4
-#     # Build the 2 RDM Matrices by taking pairwise category euclidean distance for the 2 states
-#     # calc_rmd returns a RDMs object
-#     small_state_features_rdm = rsatoolbox.rdm.calc_rdm(small_state_features_data, method='euclidean', descriptor=None, noise=None)
-#     large_state_features_rdm = rsatoolbox.rdm.calc_rdm(large_state_features_data, method='euclidean', descriptor=None, noise=None)
+    # Preparing data for calculating RDM
+    small_state_features_data = rsatoolbox.data.Dataset(small_state_features_z_norm)
+    large_state_features_data = rsatoolbox.data.Dataset(large_state_features_z_norm)
 
-#     # Plotting and Saving
-#     # Need to write code for saving
+    # Step 4
+    # Build the 2 RDM Matrices by taking pairwise category euclidean distance for the 2 states
+    # calc_rmd returns a RDMs object
+    small_state_features_rdm = rsatoolbox.rdm.calc_rdm(small_state_features_data, method='euclidean', descriptor=None, noise=None)
+    large_state_features_rdm = rsatoolbox.rdm.calc_rdm(large_state_features_data, method='euclidean', descriptor=None, noise=None)
 
-#     fig, ax, ret_val = rsatoolbox.vis.show_rdm(small_state_features_rdm, show_colorbar='figure')
-#     img_name = 'small_state_features_rdm_' + c_stage + '.png'
-#     save_path = os.path.join(save_dir, img_name)
-#     fig.savefig(save_path, bbox_inches='tight', dpi=300)
+    # Plotting and Saving
+    # Need to write code for saving
 
-#     fig, ax, ret_val = rsatoolbox.vis.show_rdm(large_state_features_rdm, show_colorbar='figure')
-#     img_name = 'large_state_features_rdm_' + c_stage + '.png'
-#     save_path = os.path.join(save_dir, img_name)
-#     fig.savefig(save_path, bbox_inches='tight', dpi=300)
+    fig, ax, ret_val = rsatoolbox.vis.show_rdm(small_state_features_rdm, show_colorbar='figure')
+    img_name = 'small_state_features_rdm_' + c_stage + '.png'
+    save_path = os.path.join(save_dir, img_name)
+    fig.savefig(save_path, bbox_inches='tight', dpi=300)
+
+    fig, ax, ret_val = rsatoolbox.vis.show_rdm(large_state_features_rdm, show_colorbar='figure')
+    img_name = 'large_state_features_rdm_' + c_stage + '.png'
+    save_path = os.path.join(save_dir, img_name)
+    fig.savefig(save_path, bbox_inches='tight', dpi=300)
     
-#     # Step 5
-#     # Getting the SPearman Rank Correlation for the 2 RDMs
-#     spearman_corr = rsatoolbox.rdm.compare_spearman(small_state_features_rdm, large_state_features_rdm)
+    # Step 5
+    # Getting the SPearman Rank Correlation for the 2 RDMs
+    spearman_corr = rsatoolbox.rdm.compare_spearman(small_state_features_rdm, large_state_features_rdm)
 
-#     print('spearman_corr : ', spearman_corr)
+    print('spearman_corr : ', spearman_corr)
 
-#     return spearman_corr
+    return spearman_corr
 
 
 # # ####################################################################
