@@ -1,17 +1,16 @@
 #!/bin/bash
-#SBATCH --time=96:00:00
-#SBATCH -p gpu --gres=gpu:1
-#SBATCH -n 1
-#SBATCH -N 1 
+#SBATCH --time=90:00:00
+#SBATCH -p gpu-he --gres=gpu:1
+#SBATCH -n 4
+#SBATCH -N 1
 #SBATCH --mem=80GB
 #SBATCH -J color_CNN
-#SBATCH -C quadrortx
-##SBATCH --constraint=v100
+##SBATCH -C quadrortx
+#SBATCH --constraint=v100
 #SBATCH -o /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/logs/MI_%A_%a_%J.out
 #SBATCH -e /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/logs/MI_%A_%a_%J.err
-#SBATCH --account=carney-tserre-condo
+##SBATCH --account=carney-tserre-condo
 ##SBATCH --array=0-1
-
 
 ##SBATCH -p gpu
 
@@ -26,16 +25,13 @@ module load python/3.5.2
 
 source activate color_CNN
 
-
 echo $SLURM_ARRAY_TASK_ID
 
 # python -u file_management.py #--job_number $SLURM_JOB_ID --gpu_index $CUDA_VISIBLE_DEVICES #-n 1 -v single_illuminant -j $SLURM_ARRAY_TASK_ID
 
 # python -u dataloaderr.py #--job_number $SLURM_JOB_ID --gpu_index $CUDA_VISIBLE_DEVICES #-n 1 -v single_illuminant -j $SLURM_ARRAY_TASK_ID
 
-# wandb login
-# wandb init
-
 python -u trainer.py #--job_number $SLURM_JOB_ID --gpu_index $CUDA_VISIBLE_DEVICES #-n 1 -v single_illuminant -j $SLURM_ARRAY_TASK_ID
 
 
+# python create_mydataset.py
