@@ -6,6 +6,7 @@ import torchvision
 from torch.nn import init
 from torchvision import transforms,datasets
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 import torch.optim as optim
 from tqdm import tqdm_notebook as tqdm
 import os
@@ -37,7 +38,7 @@ import dataloader_lightning
 # print('Importedddddd HMAX_latest_slim')
 import hmax_fixed_ligtning
 
-from rdm_corr import rdm_corr_scales_func
+from rdm_corr import rdm_corr_scales_func, rdm_corr_func
 
 import os
 import shutil
@@ -70,33 +71,55 @@ if __name__ == '__main__':
     # base = pt_model.slice
 
     # Hyper-Parameters
-    IP_bool = False
+    IP_bool = True
     capsnet_bool = False
-    IP_capsnet_bool = True
+    IP_capsnet_bool = False
+    IP_contrastive_bool = False
+    lindeberg_fov_max_bool = False
     if capsnet_bool:
         prj_name = "checkpoint_CapsNet_data_shuffle_org_MNIST_data_64bs_1by4_1e4"
     elif IP_capsnet_bool:
-        prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_to_12_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif IP_bool:
-        prj_name = "checkpoint_HMAX_basic_single_band_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4_continued_continued"
+        prj_name = "checkpoint_HMAX_basic_multi_band_02_scale_loss_drop_15S1_14_C1_05_stride_C1_no_interpolate_S1_correct_gabor_BN_relu_real_S2b_BN_relu_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_2scale_224_64bs_1by4_1e4"
+    elif IP_contrastive_bool:
+        prj_name = "checkpoint_correct_contrastive_all_labels_HMAX_basic_single_band_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
+    elif lindeberg_fov_max_bool:
+        prj_name = "checkpoint_lindeberg_fov_max_5e4_lr_no_weight_decay_2scale_112_64bs_1by4" 
     else:
         prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
-
         # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
+    
     n_ori = 4
     n_classes = 10
 
-    if IP_bool or capsnet_bool or IP_capsnet_bool:
+    if IP_bool or capsnet_bool or IP_capsnet_bool or IP_contrastive_bool:
         # lr = 0.000001 # For 7 scales
         # lr = 0.00000005 # For 14 scales
         # lr = 0.00001 # Our
         lr = 1e-4 # IP_caps
         # lr = 1e-3 # caps
         # lr = 0.000005 # Lindeberg?
-        weight_decay = 1e-4
-        batch_size_per_gpu = 40
-        num_epochs = 1000
-        ip_scales = 9 #14 #7
+        weight_decay = 1e-4 #1e-2
+        batch_size_per_gpu = 24
+        num_epochs = 500 # 1000
+        ip_scales = 18 #18 # 9 #14 #7
+        image_size = 224 #224 #128 #192
+        linderberg_bool = False
+        my_data = True
+        orginal_mnist_bool = False
+        oracle_bool = False
+        argmax_bool = False
+        oracle_plot_overlap_bool = False
+        argmax_plot_overlap_bool = False
+        oracle_argmax_plot_overlap_bool = False
+
+    elif lindeberg_fov_max_bool:
+        lr = 5e-4 # IP_caps
+        weight_decay = 0
+        batch_size_per_gpu = 128
+        num_epochs = 500 # 1000
+        ip_scales = 18 #18 # 9 #14 #7
         image_size = 224 #224 #128 #192
         linderberg_bool = False
         my_data = True
@@ -105,6 +128,7 @@ if __name__ == '__main__':
         argmax_bool = False
         oracle_plot_overlap_bool = False
         oracle_argmax_plot_overlap_bool = False
+
     else:
         lr = 10e-5# --> HMAX
         weight_decay = 1e-4
@@ -117,7 +141,7 @@ if __name__ == '__main__':
 
 
     # Mode
-    test_mode = True
+    test_mode = False
     val_mode = False
     continue_tr = False
     visualize_mode = False
@@ -164,11 +188,10 @@ if __name__ == '__main__':
     MNIST_Scale = train_dataset
 
     # Initializing the model
-    model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool)
+    model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool, IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool)
 
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=16-val_acc1=0.9179-val_loss=0.4538898214697838.ckpt')
-
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=164-val_acc1=99.22876524925232-val_loss=0.040509498860606424.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
@@ -183,6 +206,7 @@ if __name__ == '__main__':
         model.lr = lr
         model.HMAX.same_scale_viz = same_scale_viz
         model.HMAX.base_scale = image_size
+        model.ip_scales = ip_scales
     
         ###################################################################
 
@@ -222,17 +246,17 @@ if __name__ == '__main__':
     my_dataset_scales = list(linderberg_test_dir.keys())
     my_dataset_scales = [int(mds*1000) for mds in my_dataset_scales]
 
-    my_dataset_scales_temp = []
-    for mds in my_dataset_scales:
-        if mds >=2000:
-            my_dataset_scales_temp.append(mds)
-    my_dataset_scales = my_dataset_scales_temp
+    # my_dataset_scales_temp = []
+    # for mds in my_dataset_scales:
+    #     if mds >=2000:
+    #         my_dataset_scales_temp.append(mds)
+    # my_dataset_scales = my_dataset_scales_temp
 
-    # my_dataset_scales = [2000, 4000, 8000]
+    my_dataset_scales = [500, 2000, 4000, 6727, 8000] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
     print('my_dataset_scales : ',my_dataset_scales)
 
-    my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale4000/train'
-    my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale4000/val'
+    my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/train'
+    my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/val'
     my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale'
 
     if linderberg_bool:
@@ -241,9 +265,15 @@ if __name__ == '__main__':
         rdm_thomas_datasets = my_dataset_scales
 
     # Calling the dataloader
-    if my_data:
+    if my_data and not IP_contrastive_bool:
+        print('In my data and not IP_contrastive_bool Condition')
         data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                 my_dataset_scales = my_dataset_scales, test_mode = False)
+    elif my_data and IP_contrastive_bool:
+        print('In IP_contrastive_bool Condition')
+        data = dataloader_lightning.dataa_loader_contrastive(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = test_mode)
+        
     elif orginal_mnist_bool:
         data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                 orginal_mnist_bool = orginal_mnist_bool)
@@ -257,7 +287,7 @@ if __name__ == '__main__':
                             monitor="val_acc1",
                             dirpath="/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/" + prj_name,
                             filename="HMAX-{epoch}-{val_acc1}-{val_loss}",
-                            save_top_k=15,
+                            save_top_k=20,
                             mode="max",
                         )
 
@@ -269,12 +299,12 @@ if __name__ == '__main__':
         source_files=['*.py'],
     )
     
-    if IP_capsnet_bool:
+    if IP_capsnet_bool: # or IP_contrastive_bool:
         print('Clipping grad norm to 0.5')
         trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], gradient_clip_val= 0.5) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
                                                     # gradient_clip_algorithm="value") #, logger = wandb_logger)
     else:
-        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback]) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
+        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], accumulate_grad_batches = 1) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
                                                 # gradient_clip_algorithm="value") #, logger = wandb_logger)
     # Train
     if not(test_mode or val_mode or rdm_corr or rdm_thomas):
@@ -285,7 +315,9 @@ if __name__ == '__main__':
     # Calculate RDM Correlation
     elif rdm_corr:
 
-        ########################
+        prj_name_save = prj_name
+
+        # ########################
         job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, "filters_data.pkl")
@@ -295,35 +327,114 @@ if __name__ == '__main__':
         open_file.close()
 
 
-        for s_i, s_data in enumerate(rdm_datasets):
-
-            print('###################################################')
-            print('###################################################')
-            print('This is scale : ',s_data)
-            print('model.prj_name : ', model.prj_name)
-            print('model.HMAX.prj_name : ', model.HMAX.prj_name)
-
-            model.HMAX.MNIST_Scale = s_data
-            model.MNIST_Scale = s_data
-
-            for c_i in range(10):
+        if not(linderberg_bool or my_data): 
+            for s_i, s_data in enumerate(rdm_datasets):
 
                 print('###################################################')
-                print('This is category : ',c_i)
+                print('###################################################')
+                print('This is scale : ',s_data)
+                print('model.prj_name : ', model.prj_name)
+                print('model.HMAX.prj_name : ', model.HMAX.prj_name)
 
-                model.HMAX.category = c_i
+                model.HMAX.MNIST_Scale = s_data
+                model.MNIST_Scale = s_data
 
-                testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
-                # Calling the dataloader
-                data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir_scale_cat, batch_size_per_gpu, n_gpus, False, True, featur_viz = featur_viz)
+                for c_i in range(10):
 
-                if s_i == 0:
-                    model.first_scale_test = True
-                else:
-                    model.first_scale_test = False
+                    print('###################################################')
+                    print('This is category : ',c_i)
 
-                #
-                trainer.test(model, data)
+                    model.HMAX.category = c_i
+
+                    testdir_scale_cat = testdir + str(s_data) + "/test/" + str(c_i)
+                    # Calling the dataloader
+                    data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir_scale_cat, batch_size_per_gpu, n_gpus, False, True, featur_viz = featur_viz)
+
+                    if s_i == 0:
+                        model.first_scale_test = True
+                    else:
+                        model.first_scale_test = False
+
+                    #
+                    trainer.test(model, data)
+        
+        elif my_data:
+            for s_i, s_data in enumerate(my_dataset_scales):
+
+                    print('###################################################')
+                    print('###################################################')
+                    print('This is scale : ',s_data)
+
+                    model.HMAX.MNIST_Scale = s_data
+                    model.MNIST_Scale = s_data
+
+                    if same_scale_viz:
+                        my_dataset_testdir_scale = testdir + str(2000) + "/test_viz"
+                    else:
+                        my_dataset_testdir_scale = my_dataset_testdir + str(s_data) + "/test"
+                    
+
+                    if oracle_bool:
+                        ########################################################################
+                        ########################################################################
+                        print('\n###################################################')
+                        print('Oracle Version')
+                        # Calling the dataloader oracle version
+                        model.prj_name = prj_name_save + "_oracle"
+                        model.HMAX.prj_name = prj_name_save + "_oracle"
+                        prj_name = prj_name_save + "_oracle"
+
+                        data = dataloader_lightning.dataa_loader_my(int(image_size/(s_data/4000)), my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                        model.orcale_bool = True
+
+                        # + str(s_data)
+                        # prj_name = prj_name + "_ivan_test"
+                        if s_i == 0:
+                            model.first_scale_test = True
+                        else:
+                            model.first_scale_test = False
+                        #
+                        trainer.test(model, data)
+                    else:
+                        print('\n###################################################')
+                        print('Non Oracle Version')
+                        # Calling the dataloader
+
+                        if argmax_bool:
+                            model.prj_name = prj_name_save + "_argmax"
+                            model.HMAX.prj_name = prj_name_save + "_argmax"
+                            prj_name = prj_name_save + "_argmax"
+
+                        for c_i in range(10):
+
+                            print('###################################################')
+                            print('This is category : ',c_i)
+
+                            model.HMAX.category = c_i
+
+                            testdir_scale_cat = my_dataset_testdir + str(s_data) + "/test/" + str(c_i)
+
+                            if my_data and IP_contrastive_bool:
+                                print('In IP_contrastive_bool Condition')
+                                data = dataloader_lightning.dataa_loader_contrastive(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                        my_dataset_scales = my_dataset_scales, test_mode = True)
+                            else:
+                                data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, testdir_scale_cat, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                        my_dataset_scales = my_dataset_scales, test_mode = True, rdm_corr_mode = True)
+
+                            model.orcale_bool = False
+
+                            #
+                            # + str(s_data)
+                            # prj_name = prj_name + "_ivan_test"
+                            if s_i == 0:
+                                model.first_scale_test = True
+                            else:
+                                model.first_scale_test = False
+                            #
+                            trainer.test(model, data)
+
 
         print('###################################################')
         print('###################################################')
@@ -339,16 +450,20 @@ if __name__ == '__main__':
         print('filters_data : ',filters_data.keys())
         open_file.close()
 
-        stage_list = ['c1', 'c2', 'c2b', 'c3']
+        # stage_list = ['c1', 'c2', 'c2b', 'c3']
+        stage_list = ['s1', 'c1', 's2b', 'c2b']
 
         spearman_corr_list = []
         for stage in stage_list:
             small_scale = []
             large_scale = []
-            for s_i, s_data in enumerate(rdm_datasets):
+            for s_i, s_data in enumerate(my_dataset_scales):
                 for c_i in range(10):
-                    key_name = stage + '_scale_' + str(s_data) + '_cat_' + str(c_i)
-                    temp_data = filters_data[key_name][:36]
+                    if not(linderberg_bool or my_data):
+                        key_name = stage + '_scale_' + str(s_data) + '_cat_' + str(c_i)
+                    else:
+                        key_name = stage + '_scale_' + str(int(s_data*1000)) + '_cat_' + str(c_i)
+                    temp_data = filters_data[key_name][:24]
 
                     print('###################################################')
                     print('Kye_name : ', key_name, ' : Shape : ', temp_data.shape)
@@ -386,6 +501,8 @@ if __name__ == '__main__':
         fig.savefig(os.path.join(job_dir, "rdm_correlation_plot.png"))
 
     elif rdm_thomas:
+
+
 
         print('rdm_thomas_datasets : ',rdm_thomas_datasets)
 
@@ -492,7 +609,7 @@ if __name__ == '__main__':
 
         print('###################################################')
         print('###################################################')
-        print('Now Loading the Data for sending to RDM Corr')
+        print('Now Loading the Data for sending to RDM thomas')
 
         job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", model.prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
@@ -544,7 +661,7 @@ if __name__ == '__main__':
     else:
         prj_name_save = prj_name
 
-        if not(oracle_plot_overlap_bool or oracle_argmax_plot_overlap_bool):
+        if not(oracle_plot_overlap_bool or argmax_plot_overlap_bool or oracle_argmax_plot_overlap_bool):
             if not(linderberg_bool or my_data):
                 for s_i, s_data in enumerate(scale_datasets):
 
@@ -619,7 +736,13 @@ if __name__ == '__main__':
                             model.HMAX.prj_name = prj_name_save + "_argmax"
                             prj_name = prj_name_save + "_argmax"
 
-                        data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
+
+                        if my_data and IP_contrastive_bool:
+                            print('In IP_contrastive_bool Condition')
+                            data = dataloader_lightning.dataa_loader_contrastive(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                        else:
+                            data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
                                                                     my_dataset_scales = my_dataset_scales, test_mode = True)
 
                         model.orcale_bool = False
@@ -680,6 +803,13 @@ if __name__ == '__main__':
                 open_file_orc = open(file_name_orc, "rb")
                 test_accs_orc = pickle.load(open_file_orc)
                 open_file_orc.close()
+            elif argmax_plot_overlap_bool:
+                job_dir_arg = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save + "_argmax")
+                os.makedirs(job_dir_arg, exist_ok=True)
+                file_name_arg = os.path.join(job_dir_arg, "scale_test_acc.pkl")
+                open_file_arg = open(file_name_arg, "rb")
+                test_accs_arg = pickle.load(open_file_arg)
+                open_file_arg.close()
             elif oracle_argmax_plot_overlap_bool:
                 # Oracle
                 job_dir_orc = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", prj_name_save + "_oracle")
@@ -701,17 +831,19 @@ if __name__ == '__main__':
             if linderberg_bool or my_data:
                 test_accs = np.array(test_accs)
 
-                fig = plt.figure(figsize=(45,10), dpi=250)
+                fig = plt.figure(figsize=(45,30), dpi=250)
                 ax = fig.add_subplot(111)
                 if my_data:
                     scales_list = [mds/1000 for mds in my_dataset_scales]
                 else:
                     scales_list = linderberg_test_dir.keys()
 
-                ax.scatter(list(scales_list), test_accs, s=100, c='b', label='Max Over Scales')
-                # if not(oracle_plot_overlap_bool):
-                for xy in zip(list(scales_list), test_accs):                                       # <--
-                    ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+                # ax.scatter(list(scales_list), test_accs, s=100, c='b', label='Max Over Scales')
+                ax.plot(list(scales_list), test_accs, c='b', label='Max Over Scales')
+
+                # # if not(oracle_plot_overlap_bool):
+                # for xy in zip(list(scales_list), test_accs):                                       # <--
+                #     ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
 
                 if oracle_plot_overlap_bool:
                     test_accs_orc = np.array(test_accs_orc)
@@ -719,34 +851,51 @@ if __name__ == '__main__':
                     ax.scatter(list(scales_list), test_accs_orc, s=100, c='r', label='Oracle Case -  Single Scale Test')
                     for xy in zip(list(scales_list), test_accs_orc):                                       # <--
                         ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+
+                elif argmax_plot_overlap_bool:
+                    test_accs_arg = np.array(test_accs_arg)
+
+                    # ax.scatter(list(scales_list), test_accs_arg, s=100, c='g', label='Argmax Case')
+                    ax.plot(list(scales_list), test_accs_arg, c='g', label='Argmax Case')
+
                 elif oracle_argmax_plot_overlap_bool:
                     # Oracle
                     test_accs_orc = np.array(test_accs_orc)
 
-                    ax.scatter(list(scales_list), test_accs_orc, s=100, c='r', label='Oracle Case -  Single Scale Test')
-                    for xy in zip(list(scales_list), test_accs_orc):                                       # <--
-                        ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+                    # ax.scatter(list(scales_list), test_accs_orc, s=100, c='r', label='Oracle Case -  Single Scale Test')
+                    ax.plot(list(scales_list), test_accs_orc, c='r', label='Oracle Case -  Single Scale Test')
+
+                    # for xy in zip(list(scales_list), test_accs_orc):                                       # <--
+                    #     ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
 
                     # Argmax
                     test_accs_arg = np.array(test_accs_arg)
 
-                    ax.scatter(list(scales_list), test_accs_arg, s=100, c='g', label='Argmax Case')
-                    for xy in zip(list(scales_list), test_accs_arg):                                       # <--
-                        ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
+                    # ax.scatter(list(scales_list), test_accs_arg, s=100, c='g', label='Argmax Case')
+                    ax.plot(list(scales_list), test_accs_arg, c='g', label='Argmax Case')
+
+                    # for xy in zip(list(scales_list), test_accs_arg):                                       # <--
+                    #     ax.annotate('(%.6s, %.6s)' % xy, xy=xy, textcoords='data', fontsize=25) # <--
 
                 
-                ax.legend(loc='lower left', fontsize=30)
+                ax.legend(loc='lower right', fontsize=30)
+
                 ax.set_xscale('log')
+                ax.set_xticks(list(scales_list))
+                ax.set_xticklabels(list(scales_list))
+
                 ax.set_xlabel(
                 "Scales",
                 fontweight="bold",
                 fontsize=40.0)
+
                 ax.set_ylabel(
                 "Accuracy",
                 fontweight="bold",
                 fontsize=40.0,)
 
                 ax.tick_params(axis='both', labelsize=25)
+
 
             else:
                 index_sort = np.argsort(scale_datasets)
@@ -772,6 +921,8 @@ if __name__ == '__main__':
             job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/scale_invar_plots"
             if oracle_plot_overlap_bool:
                 fig.savefig(os.path.join(job_dir, prj_name_save + '_oracle_overlap'))
+            elif argmax_plot_overlap_bool:
+                fig.savefig(os.path.join(job_dir, prj_name_save + '_argmax_overlap'))
             elif oracle_argmax_plot_overlap_bool:
                 fig.savefig(os.path.join(job_dir, prj_name_save + '_oracle_argmax_overlap'))
             else:
