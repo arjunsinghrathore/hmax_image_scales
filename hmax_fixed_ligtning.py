@@ -48,9 +48,15 @@ from hmax_models.hmax_ivan import HMAX_latest_slim
 
 from hmax_models.hmax_ip_basic_single_band import HMAX_IP_basic_single_band
 
+from hmax_models.hmax_ip_basic_multi_band import HMAX_IP_basic_multi_band
+
 from hmax_models.hmax_ip_basic_single_band_caps import HMAX_IP_basic_single_band_caps
 
+from hmax_models.hmax_ip_basic_single_band_contrastive import HMAX_IP_basic_single_band_contrastive
+
 from hmax_models.CapsNet import CapsNet
+
+from hmax_models.lindeberg_fov_max import fov_max
 
 import argparse
 import os
@@ -74,13 +80,15 @@ seed_everything(42, workers=True)
 
 class HMAX_trainer(pl.LightningModule):
     def __init__(self, prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool = False, visualize_mode = False, \
-                 MNIST_Scale = None, first_scale_test = False, capsnet_bool = False, IP_capsnet_bool = False):
+                 MNIST_Scale = None, first_scale_test = False, capsnet_bool = False, IP_capsnet_bool = False, \
+                 IP_contrastive_bool = False, lindeberg_fov_max_bool = False):
         super().__init__()
         
         self.parameter_dict = {'prj_name':prj_name, 'n_ori':n_ori, 'n_classes':n_classes, \
                                 'lr':lr, 'weight_decay':weight_decay, 'ip_scales':ip_scales, \
                                 'first_scale_test':first_scale_test, 'visualize_mode':visualize_mode, \
-                                'MNIST_Scale':MNIST_Scale, 'capsnet_bool':capsnet_bool, 'IP_capsnet_bool':IP_capsnet_bool}
+                                'MNIST_Scale':MNIST_Scale, 'capsnet_bool':capsnet_bool, 'IP_capsnet_bool':IP_capsnet_bool, \
+                                'IP_contrastive_bool':IP_contrastive_bool, 'lindeberg_fov_max_bool':lindeberg_fov_max_bool}
 
         print('self.parameter_dict : ',self.parameter_dict)
 
@@ -97,6 +105,8 @@ class HMAX_trainer(pl.LightningModule):
 
         self.capsnet_bool = capsnet_bool
         self.IP_capsnet_bool = IP_capsnet_bool
+        self.IP_contrastive_bool = IP_contrastive_bool
+        self.lindeberg_fov_max_bool = lindeberg_fov_max_bool
 
         ########################## While Testing ##########################
         
@@ -107,6 +117,12 @@ class HMAX_trainer(pl.LightningModule):
         elif self.IP_capsnet_bool:
             self.HMAX = HMAX_IP_basic_single_band_caps(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                                 visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+        elif self.IP_contrastive_bool:
+            self.HMAX = HMAX_IP_basic_single_band_contrastive(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+        elif self.lindeberg_fov_max_bool:
+            # print('In hmax_fixed_lightning succes')
+            self.HMAX = fov_max(ip_scales = self.ip_scales, num_classes=self.n_classes)
         elif not self.IP_bool:
             # self.HMAX = HMAX(n_ori=self.n_ori,num_classes=self.n_classes)
             self.HMAX = HMAX_latest_slim(n_ori=self.n_ori,num_classes=self.n_classes)
@@ -119,7 +135,12 @@ class HMAX_trainer(pl.LightningModule):
                                 # visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
             # self.HMAX = HMAX_IP_basic(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes)
 
-            self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+            # Single Band
+            # self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+            #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+
+            # Multi-Band
+            self.HMAX = HMAX_IP_basic_multi_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                                 visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
 
@@ -213,11 +234,17 @@ class HMAX_trainer(pl.LightningModule):
         # print('target : ',target.dtype)
         # print('images : ',images.dtype)
 
-        h_w = images.shape[-1]
-        n_c = images.shape[1]
         if len(images.shape) == 4:
+            h_w = images.shape[-1]
+            n_c = images.shape[1]
             images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
+        elif len(images.shape) == 5 and self.IP_contrastive_bool:
+            h_w = images.shape[-1]
+            n_c = images.shape[2]
+            images = images.reshape(-1, n_c, h_w, h_w)
+            target = target.reshape(-1)
+        
 
         ########################
         if self.capsnet_bool:
@@ -269,8 +296,22 @@ class HMAX_trainer(pl.LightningModule):
             acc1 = sum(np.argmax(masked.data.cpu().numpy(), 1) == 
                                    np.argmax(target_eye.data.cpu().numpy(), 1)) / float(images.shape[0])
 
+        elif self.IP_contrastive_bool:
+
+            # images = images.reshape()
+
+            output, max_scale_index = self(images)
+
+            ########################
+            loss = self.HMAX.loss(output, target)
+
+            acc1 = [0]
+
+            ########################
+            loss = torch.mean(loss)
+
         else:
-            output = self(images)
+            output, max_scale_index, correct_scale_loss = self(images)
 
             ########################
             loss = self.criterion(output, target)
@@ -280,10 +321,14 @@ class HMAX_trainer(pl.LightningModule):
             ########################
             loss = torch.mean(loss)
 
+            # Adding scale loss
+            loss = loss + (correct_scale_loss*0.125)
+
         ########################
-        # self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-        # self.log("train_performance", {"acc1": acc1, "acc5": acc5})
-        self.log('train_acc1', acc1, on_step=True, on_epoch=True, prog_bar=True)
+        if not self.IP_contrastive_bool:
+            # self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+            # self.log("train_performance", {"acc1": acc1, "acc5": acc5})
+            self.log('train_acc1', acc1, on_step=True, on_epoch=True, prog_bar=True)
 
         return loss #{'output' : output, 'target' : target} 
 
@@ -313,9 +358,14 @@ class HMAX_trainer(pl.LightningModule):
         
         images, target = batch
 
-        h_w = images.shape[-1]
-        n_c = images.shape[1]
         if len(images.shape) == 4:
+            h_w = images.shape[-1]
+            n_c = images.shape[1]
+            images = images.reshape(-1, n_c, h_w, h_w)
+            target = target.reshape(-1)
+        elif len(images.shape) == 5:
+            h_w = images.shape[-1]
+            n_c = images.shape[2]
             images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
 
@@ -395,8 +445,26 @@ class HMAX_trainer(pl.LightningModule):
             acc5_list = [0]
             self.acc5_list += acc5_list
 
+        elif self.IP_contrastive_bool:
+
+            # images = images.reshape()
+
+            output, max_scale_index = self(images)
+
+            ########################
+            val_loss = self.HMAX.loss(output, target)
+
+            acc1_list = [0]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+
+            ########################
+            val_loss = torch.mean(val_loss)
+
         else:
-            output = self(images)
+            # print('Correct Place')
+            output, max_scale_index, correct_scale_loss = self(images)
 
             ########################
             val_loss = self.criterion(output, target)
@@ -405,6 +473,9 @@ class HMAX_trainer(pl.LightningModule):
 
             ########################
             val_loss = torch.mean(val_loss)
+
+            # Adding scale loss
+            val_loss = val_loss + (correct_scale_loss*0.125)
 
             acc1_list = acc1.cpu().tolist()
             self.acc1_list += acc1_list
@@ -423,7 +494,7 @@ class HMAX_trainer(pl.LightningModule):
         # val_loss = torch.mean(val_loss)
 
         # return val_loss
-        return acc1
+        return val_loss
 
     def validation_epoch_end(self,losses):
 
@@ -476,9 +547,14 @@ class HMAX_trainer(pl.LightningModule):
         
         images, target = batch
 
-        h_w = images.shape[-1]
-        n_c = images.shape[1]
         if len(images.shape) == 4:
+            h_w = images.shape[-1]
+            n_c = images.shape[1]
+            images = images.reshape(-1, n_c, h_w, h_w)
+            target = target.reshape(-1)
+        elif len(images.shape) == 5:
+            h_w = images.shape[-1]
+            n_c = images.shape[2]
             images = images.reshape(-1, n_c, h_w, h_w)
             target = target.reshape(-1)
 
@@ -567,10 +643,34 @@ class HMAX_trainer(pl.LightningModule):
 
             self.overall_max_scale_index += max_scale_index
 
+        elif self.IP_contrastive_bool:
+
+            # images = images.reshape()
+
+            output, max_scale_index = self(images)
+
+            ########################
+            val_loss, prob = self.HMAX.loss(output, target, True)
+
+            acc1_list = [0]
+            self.acc1_list += acc1_list
+            acc5_list = [0]
+            self.acc5_list += acc5_list
+
+            ########################
+            # val_loss = torch.mean(val_loss)
+
+            time.sleep(1)
+            # print('prob : ', prob)
+            # val_loss_list = val_loss.cpu().tolist()
+            # print('val_loss_list : ',val_loss_list) 
+            val_loss_list = [val_loss.item()]
+            self.val_losses += val_loss_list
+
         else:
 
             ########################
-            output, max_scale_index = self(images, batch_idx)
+            output, max_scale_index, correct_scale_loss = self(images, batch_idx)
 
             # return 0
 
@@ -596,7 +696,7 @@ class HMAX_trainer(pl.LightningModule):
         # val_loss = torch.mean(val_loss)
 
         # return val_loss
-        return acc1
+        return val_loss
 
     def test_epoch_end(self,losses):
 
@@ -609,7 +709,8 @@ class HMAX_trainer(pl.LightningModule):
         # print('self.overall_max_scale_index : ',self.overall_max_scale_index)
         print('self.overall_max_scale_index len : ',len(self.overall_max_scale_index))
         
-        axs.hist(self.overall_max_scale_index, bins = 20)
+        # axs.hist(self.overall_max_scale_index, bins = 20)
+        axs.hist(self.overall_max_scale_index, bins = [0,1,2,3,4,5,6,7,8]) #,9,10,11,12,13,14,15,16])
 
         job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_argmax_hist", self.prj_name)
         os.makedirs(job_dir, exist_ok=True)
