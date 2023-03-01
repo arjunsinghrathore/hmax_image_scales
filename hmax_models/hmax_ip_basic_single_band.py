@@ -373,7 +373,8 @@ class C(nn.Module):
                         ori_size = x_pyramid[0].shape[2:4]
                     else:
                         # ori_size = x_pyramid[-5].shape[2:4]
-                        ori_size = x_pyramid[-9].shape[2:4]
+#                         ori_size = x_pyramid[-9].shape[2:4]
+                         ori_size = x_pyramid[-int(np.ceil(len(x_pyramid)/2))].shape[2:4]
                         # print('ori_size : ',ori_size)
 
                 # ####################################################
