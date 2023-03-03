@@ -1021,23 +1021,25 @@ class HMAX_IP_sep_ideal(nn.Module):
 
         self.get_s4_in_channels()
 
-        self.s4_c1 = nn.Sequential(nn.Conv2d(self.n_ori, self.n_ori, 1, 1),
+        self.s4_c1 = nn.Sequential(
+                                # nn.Conv2d(self.n_ori, self.n_ori, 1, 1),
                                 # nn.Dropout(0.3),
                                 # # nn.BatchNorm2d(512, 1e-3),
                                 # nn.ReLU(True),
                                 # # nn.MaxPool2d(3, 2),
-                                nn.AdaptiveMaxPool2d(18))
+                                nn.AdaptiveMaxPool2d(32))
 
-        self.s4_c2 = nn.Sequential(nn.Conv2d(100, 50, 1, 1),
+        self.s4_c2 = nn.Sequential(
+                                # nn.Conv2d(100, 50, 1, 1),
                                 # nn.Dropout(0.3),
                                 # # nn.BatchNorm2d(512, 1e-3),
                                 # nn.ReLU(True),
-                                nn.Conv2d(50, 25, 1, 1),
+                                # nn.Conv2d(50, 25, 1, 1),
                                 # nn.Dropout(0.3),
                                 # # nn.BatchNorm2d(256, 1e-3),
                                 # nn.ReLU(True),
                                 # # nn.MaxPool2d(3, 2),
-                                nn.AdaptiveMaxPool2d(18))
+                                nn.AdaptiveMaxPool2d(32))
 
         ###############################################
         # Classifier
@@ -1054,7 +1056,7 @@ class HMAX_IP_sep_ideal(nn.Module):
 
         # # Classifier
         self.classifier = nn.Sequential(nn.Dropout(0.5),  # TODO: check if this will be auto disabled if eval
-                                        nn.Linear(149636, 256),  # fc1
+                                        nn.Linear(1608936, 256),  # fc1
                                         # nn.BatchNorm1d(4096, 1e-3),
                                         # nn.ReLU(True),
                                         # nn.Dropout(0.5),  # TODO: check if this will be auto disabled if eval
@@ -1417,12 +1419,17 @@ class HMAX_IP_sep(nn.Module):
         # ip_scales = self.ip_scales
 
         #########################################
-        c1_out = (ip_scales-1) * self.n_ori
-        c2_out = (ip_scales-2) * self.s2.s_0[0].weight.shape[0]
-        c3_out = (ip_scales-3) * self.s3.s_0[0].weight.shape[0]
+        # c1_out = (ip_scales-1) * self.n_ori
+        # c2_out = (ip_scales-2) * self.s2.s_0[0].weight.shape[0]
+        # c3_out = (ip_scales-3) * self.s3.s_0[0].weight.shape[0]
+        # c2b_out = len(self.s2b.kernel_size) * (ip_scales-2) * self.s2b.s_0[0].weight.shape[0]
+        # # c3_out = self.s3.s_0[0].weight.shape[0]
+        # # c2b_out = len(self.s2b.kernel_size) * self.s2b.s_0[0].weight.shape[0]
+
+        c1_out = self.n_ori
+        c2_out = self.s2.s_0[0].weight.shape[0]
+        c3_out = self.s3.s_0[0].weight.shape[0]
         c2b_out = len(self.s2b.kernel_size) * (ip_scales-2) * self.s2b.s_0[0].weight.shape[0]
-        # c3_out = self.s3.s_0[0].weight.shape[0]
-        # c2b_out = len(self.s2b.kernel_size) * self.s2b.s_0[0].weight.shape[0]
 
         self.c1_out = c1_out
         self.c2_out = c2_out

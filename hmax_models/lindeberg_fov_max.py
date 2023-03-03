@@ -27,9 +27,9 @@ def pad_to_size(a, size):
     return a
 
 
-class phi_network(nn.Module):
+class conv_bn_relu_func(nn.Module):
     def __init__(self, channels_in, kernel_size, stride):
-        super(phi_network, self).__init__()
+        super(conv_bn_relu_func, self).__init__()
 
         self.conv_bn_relu_seq = nn.Sequential(
                                         nn.Conv2d(channels_in, 16, kernel_size, 1),
@@ -49,13 +49,60 @@ class phi_network(nn.Module):
                                         nn.ReLU(True),
                                         )
 
-        self.linear_layer = nn.Sequential(
-                                        nn.Linear(20000, 100),  
-                                        nn.Dropout(0.15),  
-                                        )
-        self.classifier = nn.Linear(100, 10)
+    def forward(self, x_pyramid):
+        c_bn_r_maps = []
+        # Loop over scales applying convolution --> batch normalizing --> relu
+        # print('len x_pyramid conv_bn_relu_func :', len(x_pyramid))
+        for p_i in range(len(x_pyramid)):
+            c_bn_r_map = self.conv_bn_relu_seq(x_pyramid[p_i])
+            c_bn_r_maps.append(c_bn_r_map)
 
-    def max_pool_scales(self, flattened_feature_maps_pyramid):
+        c_bn_r_maps = torch.stack(c_bn_r_maps, dim=4)
+
+        return c_bn_r_maps
+
+
+# # MaxPooling Over Positions First Then Scales
+# class max_poooling_func(nn.Module):
+#     def __init__(self):
+#         super(max_poooling_func, self).__init__()
+        
+#     def forward(self, feature_maps_pyramid):
+
+#         # Global MaxPool over positions for each scale separately
+#         scale_max = []
+#         # print('len feature_maps_pyramid max_poooling_func :', len(feature_maps_pyramid))
+#         for p_i in range(len(feature_maps_pyramid)):
+#             s_m = F.max_pool2d(feature_maps_pyramid[p_i], feature_maps_pyramid[p_i].shape[-1], 1)
+#             scale_max.append(s_m)
+
+#         # Option 1:: Global Max Pooling over Scale i.e, Maxpool over scale groups
+#         scale_max = torch.stack(scale_max, dim=4)
+#         feature_out, _ = torch.max(scale_max, dim=4)
+
+#         # Option 2:: Global Avg Pooling over Scale i.e, Avgpool over scale groups
+
+#         return feature_out  
+
+# # MaxPooling Over Scales Directly
+# class max_poooling_func(nn.Module):
+#     def __init__(self):
+#         super(max_poooling_func, self).__init__()
+        
+#     def forward(self, feature_maps_pyramid):
+
+#         # Option 1:: Global Max Pooling over Scale i.e, Maxpool over scale groups
+#         feature_out, _ = torch.max(feature_maps_pyramid, dim=4)
+
+#         # Option 2:: Global Avg Pooling over Scale i.e, Avgpool over scale groups
+
+#         return feature_out  
+
+class max_poooling_func(nn.Module):
+    def __init__(self):
+        super(max_poooling_func, self).__init__()
+        
+    def forward(self, flattened_feature_maps_pyramid):
 
         # Global MaxPool
         flattened_feature_maps_pyramid = torch.stack(flattened_feature_maps_pyramid, dim=2)
@@ -64,28 +111,6 @@ class phi_network(nn.Module):
         # Option 2:: Global Avg Pooling over Scale i.e, Avgpool over scale groups
 
         return feature_out  
-
-    def forward(self, x_pyramid):
-        linear_out_stack = []
-        # Loop over scales applying convolution --> batch normalizing --> relu --> 2 Linear Layers --> Max Pooling across scales between logits we get from the linear layer
-        # print('len x_pyramid conv_bn_relu_func :', len(x_pyramid))
-        for p_i in range(len(x_pyramid)):
-            c_bn_r_map = self.conv_bn_relu_seq(x_pyramid[p_i])
-
-            c_bn_r_map_flattned = torch.flatten(c_bn_r_map, 1)
-            # c_bn_r_map_flattned = torch.flatten(F.avg_pool2d(c_bn_r_map, c_bn_r_map.shape[-1], 1), 1)
-            # print('c_bn_r_map_flattned : ',c_bn_r_map_flattned.shape)
-
-            linear_out = self.linear_layer(c_bn_r_map_flattned)
-            final_linear_out = self.classifier(linear_out)
-
-            linear_out_stack.append(final_linear_out)
-
-        # linear_out_stack --> Scales, num_classes
-        max_poooling_out = self.max_poooling(linear_out_stack)
-        
-        return max_poooling_out
-
 
 
 #########################################################################################################
@@ -102,11 +127,23 @@ class fov_max(nn.Module):
         self.scale = 4
         
         ########################################################
-        # Feature extractors (in the order conv_bn_relu --> Linear Layers --> max_poooling)
-        self.phi_network = phi_network(channels_in = 1, kernel_size = 3, stride = 2)
+        # Feature extractors (in the order conv_bn_relu_func --> max_poooling_func)
+        self.conv_bn_relu = conv_bn_relu_func(channels_in = 1, kernel_size = 3, stride = 2)
+        self.max_poooling = max_poooling_func()
         ########################################################
 
-
+        # # Classifier
+        # self.classifier = nn.Sequential(
+        #                                 nn.Linear(32, 100),  
+        #                                 nn.Dropout(0.15),
+        #                                 nn.Linear(100, 10)  
+        #                                 )
+        
+        self.linear_layer = nn.Sequential(
+                                        nn.Linear(32, 100),  
+                                        nn.Dropout(0.15),  
+                                        )
+        self.classifier = nn.Linear(100, 10)
 
     def make_ip(self, x):
 
@@ -132,6 +169,9 @@ class fov_max(nn.Module):
         index_sort = index_sort[::-1]
         self.image_scales = [image_scales[i_s] for i_s in index_sort]
 
+        # print('image_scales : ',self.image_scales)
+
+        base_image_size = 112
 
         if len(self.image_scales) > 1:
             # print('Right Hereeeeeee: ', self.image_scales)
@@ -191,10 +231,34 @@ class fov_max(nn.Module):
         x_pyramid = self.make_ip(x)
 
         ###############################################
-        logits = self.phi_network(x_pyramid) # Batch, Channels, H, W, Scales
-        
+        conv_bn_relu_maps = self.conv_bn_relu(x_pyramid) # Batch, Channels, H, W, Scales
+        # max_poooling_maps = self.max_poooling(conv_bn_relu_maps)
+        # print('max_poooling_maps : ',max_poooling_maps.shape)
 
-        return logits , max_scale_index, correct_scale_loss
+        ###############################################
+        # max_poooling_maps_flattened = torch.flatten(max_poooling_maps, 1) 
+
+        linear_out_stack = []
+        # print('conv_bn_relu_maps : ',conv_bn_relu_maps.shape)
+        for s_ii in range(conv_bn_relu_maps.shape[4]):
+            # conv_bn_relu_maps_flattned = torch.flatten(conv_bn_relu_maps[:,:,:,:,s_ii], 1)
+            conv_bn_relu_maps_flattned = torch.flatten(F.avg_pool2d(conv_bn_relu_maps[:,:,:,:,s_ii], conv_bn_relu_maps[:,:,:,:,s_ii].shape[-1], 1), 1)
+            # print('conv_bn_relu_maps_flattned : ',conv_bn_relu_maps_flattned.shape)
+
+            linear_out = self.linear_layer(conv_bn_relu_maps_flattned)
+            final_linear_out = self.classifier(linear_out)
+
+            linear_out_stack.append(final_linear_out)
+        
+        # linear_out_stack --> Scales, num_classes
+        max_poooling_out = self.max_poooling(linear_out_stack)
+        # print('max_poooling_out : ',max_poooling_out.shape)
+
+        # Classify
+        # output = self.classifier(max_poooling_maps_flattened)
+        # output = self.classifier(max_poooling_maps)
+
+        return max_poooling_out , max_scale_index, correct_scale_loss
 
 #############################################################################
 #############################################################################
