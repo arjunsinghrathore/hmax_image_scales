@@ -80,7 +80,7 @@ if __name__ == '__main__':
     elif IP_capsnet_bool:
         prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_to_12_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif IP_bool:
-        prj_name = "checkpoint_HMAX_basic_single_band_02_drop_smoothed_nl_mnist_15S1_14_C1_05_stride_S1_correct_gabor_BN_abs_after_real_S2b_BN_relu_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_2scale_224_64bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_basic_multi_band_02_scale_loss_drop_smoothed_nl_mnist_15S1_14_C1_05_stride_C1_no_interpolate_S1_correct_gabor_BN_relu_real_S2b_BN_relu_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_2scale_224_64bs_1by4_1e4"
     elif IP_contrastive_bool:
         prj_name = "checkpoint_correct_contrastive_all_labels_HMAX_basic_single_band_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif lindeberg_fov_max_bool:
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         # lr = 1e-3 # caps
         # lr = 0.000005 # Lindeberg?
         weight_decay = 1e-4 #1e-2
-        batch_size_per_gpu = 10
+        batch_size_per_gpu = 24
         num_epochs = 500 # 1000
         ip_scales = 18 #18 # 9 #14 #7
         image_size = 224 #224 #128 #192
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     # Loading weights if required
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
         # Change Path into own folder
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=204-val_acc1=99.0985576923077-val_loss=0.05714170011053345.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=240-val_acc1=99.04387987293482-val_loss=0.04373102669451152.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
