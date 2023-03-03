@@ -4,7 +4,7 @@
 #SBATCH -n 4
 #SBATCH -N 1
 #SBATCH --mem=80GB
-#SBATCH -J color_CNN
+#SBATCH -J hmax_pytorch
 ##SBATCH -C quadrortx
 #SBATCH --constraint=v100
 #SBATCH -o /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/logs/MI_%A_%a_%J.out
