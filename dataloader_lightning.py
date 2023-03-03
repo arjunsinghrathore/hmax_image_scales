@@ -40,20 +40,33 @@ def loader_func(image_path):
     
     return Image.fromarray(img)
 
-class rdm_corr_data(Dataset):
+class load_mnist_manually(Dataset):
     def __init__(self, image_dir, image_size):
       
       self.image_dir = image_dir
       self.image_size = image_size
 
-      self.image_paths = os.listdir(self.image_dir)
+      if type(self.image_dir) == list:
+        self.image_paths = []
+        for id_i in range(len(self.image_dir)):
+            image_paths_class = os.listdir(self.image_dir[id_i])
+            for img_pth in image_paths_class:
+                image_paths_ind = os.listdir(self.image_dir[id_i] + '/' + img_pth)
+                image_paths_ind = [self.image_dir[id_i] + '/' + img_pth + '/' + img_pth_i for img_pth_i in image_paths_ind]
+                self.image_paths = self.image_paths + image_paths_ind
+      else:
+        self.image_paths = os.listdir(self.image_dir)
+        self.image_paths = [self.image_dir + '/' + img_pth for img_pth in self.image_paths]
+
+      print('Len self.image_paths : ', len(self.image_paths))
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
 
-        image_path_mod = os.path.join(self.image_dir, self.image_paths[idx])
+        # image_path_mod = os.path.join(self.image_dir, self.image_paths[idx])
+        image_path_mod = self.image_paths[idx]
 
         img = cv2.imread(image_path_mod)
         img = img[:,:,::-1]
@@ -61,11 +74,13 @@ class rdm_corr_data(Dataset):
         img = (img/255)
 
         # If Image size = 512
-        img = cv2.resize(img, (self.image_size, self.image_size))
+        # img = cv2.resize(img, (self.image_size, self.image_size))
 
         img = img.transpose(2,0,1)
 
-        category = int(self.image_dir.split('/')[-1])
+        # img = img + np.random.randn(img.shape[0], img.shape[1], img.shape[2]) * 1. + 0.
+
+        category = int(image_path_mod.split('/')[-2]) #int(self.image_dir.split('/')[-1])
 
         return torch.tensor(img.copy(), dtype = torch.float32), torch.tensor(np.array([category]), dtype = torch.int64)
 
@@ -197,7 +212,7 @@ class dataa_loader(pl.LightningDataModule):
                     self.test_data, self.throw_data = random_split(self.test_data, [8, len_data-8], generator=torch.Generator().manual_seed(42))
             
             if self.rdm_corr_mode:
-                self.test_data = rdm_corr_data(self.testdir, self.image_size)
+                self.test_data = load_mnist_manually(self.testdir, self.image_size)
 
                 len_data = len(self.test_data)
                 self.test_data, self.throw_data = random_split(self.test_data, [8, len_data-8], generator=torch.Generator().manual_seed(42))
@@ -227,9 +242,20 @@ class dataa_loader(pl.LightningDataModule):
 
 ############################################################
 
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.std = std
+        self.mean = mean
+        
+    def __call__(self, tensor):
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
+    
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
 class dataa_loader_my(pl.LightningDataModule):
     def __init__(self, image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
-                my_dataset_scales, test_mode, rdm_corr_mode = False):
+                my_dataset_scales, test_mode, rdm_corr_mode = False, all_scales_train_bool = False):
         super().__init__()
           
         # Directory to load Data
@@ -238,12 +264,9 @@ class dataa_loader_my(pl.LightningDataModule):
         self.testdir = testdir
         self.featur_viz = featur_viz
         self.rdm_corr_mode = rdm_corr_mode
+        self.all_scales_train_bool = all_scales_train_bool
 
         # self.IP_contrastive_bool = IP_contrastive_bool
-
-        print('traindir : ',traindir)
-        print('valdir : ',valdir)
-        print('testdir : ',testdir)
 
         self.test_mode = test_mode
 
@@ -255,26 +278,70 @@ class dataa_loader_my(pl.LightningDataModule):
   
     def setup(self, stage=None):
 
-        
-        self.train_data = datasets.ImageFolder(root=
-            self.traindir,
-            transform=
-            transforms.Compose([
-                transforms.Resize(self.image_size),
+        if self.all_scales_train_bool:
+            self.traindir = [
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale500/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale595/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale707/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale841/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1414/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1682/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2378/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2828/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/train',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4757/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale5657/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale6727/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale8000/train',
+                            ]
+                            
+            self.train_data = load_mnist_manually(self.traindir, self.image_size)
 
-                #transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ]))
+            self.valdir = [
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale500/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale595/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale707/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale841/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1414/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1682/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2378/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2828/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/val',
+                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4757/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale5657/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale6727/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale8000/val',
+                            ]
+            self.val_data = load_mnist_manually(self.valdir, self.image_size)
+            
+        else:
+            self.train_data = datasets.ImageFolder(root=
+                self.traindir,
+                transform=
+                transforms.Compose([
+                    transforms.Resize(self.image_size),
 
-        self.val_data = datasets.ImageFolder(root=
-            self.valdir,
-            transform=
-            transforms.Compose([
-                transforms.Resize(self.image_size),
+                    #transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                ]))
 
-                #transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ]))
+            self.val_data = datasets.ImageFolder(root=
+                self.valdir,
+                transform=
+                transforms.Compose([
+                    transforms.Resize(self.image_size),
+
+                    #transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                ]))
 
         if self.test_mode and not self.rdm_corr_mode:
             self.test_data = datasets.ImageFolder(root=
@@ -285,35 +352,39 @@ class dataa_loader_my(pl.LightningDataModule):
 
                     #transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
+                    # AddGaussianNoise(0., 1.),
                 ]), 
                 # loader = loader_func 
                 )
             
             if self.featur_viz:
                 len_data = len(self.test_data)
-                self.test_data, self.throw_data = random_split(self.test_data, [24, len_data-24], generator=torch.Generator().manual_seed(42))
+                self.test_data, self.throw_data = random_split(self.test_data, [10, len_data-10], generator=torch.Generator().manual_seed(42))
 
         if self.rdm_corr_mode:
-            self.test_data = rdm_corr_data(self.testdir, self.image_size)
+            self.test_data = load_mnist_manually(self.testdir, self.image_size)
 
             len_data = len(self.test_data)
-            self.test_data, self.throw_data = random_split(self.test_data, [24, len_data-24], generator=torch.Generator().manual_seed(42))
+            self.test_data, self.throw_data = random_split(self.test_data, [10, len_data-10], generator=torch.Generator().manual_seed(42))
+        
             
   
-        
+        print('traindir : ',self.traindir)
+        print('valdir : ',self.valdir)
+        print('testdir : ',self.testdir)
 
 
     def train_dataloader(self):
         
         # Generating train_dataloader
         return DataLoader(self.train_data, 
-                          batch_size = self.batch_size, drop_last = True, num_workers = 8, pin_memory=False, shuffle = True)
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
   
     def val_dataloader(self):
         
         # Generating val_dataloader
         return DataLoader(self.val_data,
-                          batch_size = self.batch_size, drop_last = True, num_workers = 8, pin_memory=False, shuffle = True)
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
   
     def test_dataloader(self):
         
@@ -566,13 +637,13 @@ class dataa_loader_contrastive(pl.LightningDataModule):
         
         # Generating train_dataloader
         return DataLoader(self.train_data, 
-                          batch_size = self.batch_size, drop_last = True, num_workers = 8, pin_memory=False, shuffle = True)
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
   
     def val_dataloader(self):
         
         # Generating val_dataloader
         return DataLoader(self.val_data,
-                          batch_size = self.batch_size, drop_last = True, num_workers = 8, pin_memory=False, shuffle = True)
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
   
     def test_dataloader(self):
         
