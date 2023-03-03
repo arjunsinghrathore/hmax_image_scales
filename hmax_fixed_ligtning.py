@@ -1,5 +1,5 @@
 import torch
-torch.manual_seed(1)
+# torch.manual_seed(1)
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
@@ -10,7 +10,7 @@ from torch.nn import init
 from tqdm import tqdm_notebook as tqdm
 import os
 import numpy as np
-np.random.seed(1)
+# np.random.seed(1)
 # import pandas as pd
 import cv2
 import _pickle as pickle
@@ -107,8 +107,6 @@ class HMAX_trainer(pl.LightningModule):
         self.IP_capsnet_bool = IP_capsnet_bool
         self.IP_contrastive_bool = IP_contrastive_bool
         self.lindeberg_fov_max_bool = lindeberg_fov_max_bool
-
-        ########################## While Testing ##########################
         
         ###################################################################
 
@@ -128,13 +126,7 @@ class HMAX_trainer(pl.LightningModule):
             self.HMAX = HMAX_latest_slim(n_ori=self.n_ori,num_classes=self.n_classes)
             # self.HMAX = HMAX_latest(n_ori=self.n_ori,num_classes=self.n_classes)
         else:
-            # self.HMAX = HMAX_IP(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-            #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
-
-            # self.HMAX = HMAX_IP_sep_ideal(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-                                # visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
-            # self.HMAX = HMAX_IP_basic(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes)
-
+            
             # Single Band
             # self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
             #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
@@ -344,8 +336,6 @@ class HMAX_trainer(pl.LightningModule):
         #     elif name == 'HMAX.s2b.s_3.weight':
         #         # print('name : ',name)
         #         param.data = param.data / ((16/4)**2)
-        
-
         
         losses = torch.mean(losses)
 
@@ -710,8 +700,9 @@ class HMAX_trainer(pl.LightningModule):
         print('self.overall_max_scale_index len : ',len(self.overall_max_scale_index))
         
         # axs.hist(self.overall_max_scale_index, bins = 20)
-        axs.hist(self.overall_max_scale_index, bins = [0,1,2,3,4,5,6,7,8]) #,9,10,11,12,13,14,15,16])
+        axs.hist(self.overall_max_scale_index, bins = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])
 
+        # Change Path into own folder
         job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_argmax_hist", self.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f'scale_{self.HMAX.MNIST_Scale}.png')
@@ -758,6 +749,7 @@ class HMAX_trainer(pl.LightningModule):
         self.log('test_acc1', acc1_list, on_step=False, on_epoch=True, prog_bar=True)
 
         ##################################
+        # Change Path into own folder
         job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/save_pickles", self.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, "scale_test_acc.pkl")
