@@ -1,5 +1,5 @@
 import torch
-torch.manual_seed(1)
+# torch.manual_seed(1)
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
@@ -11,7 +11,7 @@ import torch.optim as optim
 from tqdm import tqdm_notebook as tqdm
 import os
 import numpy as np
-np.random.seed(1)
+# np.random.seed(1)
 # import pandas as pd
 import cv2
 # from PIL import Image
@@ -47,7 +47,7 @@ import random
 # Seeds
 from pytorch_lightning import Trainer, seed_everything
 
-seed_everything(42, workers=True)
+# seed_everything(42, workers=True)
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -70,21 +70,34 @@ if __name__ == '__main__':
     # base = pt_model.slice
 
     # Hyper-Parameters
-    IP_bool = True
+    IP_bool = False
+    IP_bool_recon = False
+    IP_full_bool = False
+    IP_2_streams = True
     capsnet_bool = False
     IP_capsnet_bool = False
     IP_contrastive_bool = False
+    IP_contrastive_finetune_bool = False
     lindeberg_fov_max_bool = False
     if capsnet_bool:
         prj_name = "checkpoint_CapsNet_data_shuffle_org_MNIST_data_64bs_1by4_1e4"
     elif IP_capsnet_bool:
         prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_to_12_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif IP_bool:
-        prj_name = "checkpoint_HMAX_basic_multi_band_02_scale_loss_drop_smoothed_nl_mnist_15S1_14_C1_05_stride_C1_no_interpolate_S1_correct_gabor_BN_relu_real_S2b_BN_relu_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_2scale_224_64bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_deeper_single_band_02_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_2scale_224_48bs_1by4_1e4"
+    elif IP_2_streams: 
+        prj_name = "checkpoint_HMAX_2_streams_ScaleBand_large_one_classifier_single_deeper_band_C1_overlap_02_drop_Equal_loss05_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_48bs_1by4_1e4"
+    elif IP_bool_recon:
+        prj_name = "checkpoint_HMAX_basic_multi_band_02_drop_recon_100_smoothed_nl_mnist_7S1_6_C1_05_stride_C1_no_interpolate_S1_correct_gabor_BN_relu_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_16bs_1by4_1e4"
+    elif IP_full_bool:
+        prj_name = "checkpoint_HMAX_full_single_band_fat_mask_presc16_noise05_02_drop_mnist_15S1_14C1_05stride_6C2_01stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_224_24bs_1by4_1e4_continued"
+        # prj_name = "checkpoint_HMAX_full_single_band_mask_noise05_vgg"
     elif IP_contrastive_bool:
-        prj_name = "checkpoint_correct_contrastive_all_labels_HMAX_basic_single_band_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_SimClr_idea_2_mlp_scaleAug_const_size_single_band_deeper_02_drop_mnist_19S1_18C1_05stride_S1_correct_gabor_abs_BN_bias_real_S2b_BN_relu_2scale_112_64bs_1by4_1e4"
+    elif IP_contrastive_finetune_bool:
+        prj_name = "checkpoint_HMAX_finetune_SimClr_idea_2_mlp_scaleAug_const_size_single_band_deeper_02_drop_mnist_7S1_6C1_05stride_S1_correct_gabor_abs_BN_bias_real_S2b_BN_relu_2scale_112_64bs_1by4_1e4"
     elif lindeberg_fov_max_bool:
-        prj_name = "checkpoint_lindeberg_avgpool_fov_max_after_final_linear_5e4_lr_no_weight_decay_2scale_112_before_64bs_1by4" 
+        prj_name = "checkpoint_lindeberg_avgpool_fov_max_after_final_linear_5e4_lr_no_weight_decay_2scale_112_before_64bs_1by4"
     else:
         prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
         # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
@@ -92,7 +105,7 @@ if __name__ == '__main__':
     n_ori = 4
     n_classes = 10
 
-    if IP_bool or capsnet_bool or IP_capsnet_bool or IP_contrastive_bool:
+    if IP_bool or IP_full_bool or capsnet_bool or IP_capsnet_bool or IP_bool_recon or IP_contrastive_finetune_bool or IP_2_streams:
         # lr = 0.000001 # For 7 scales
         # lr = 0.00000005 # For 14 scales
         # lr = 0.00001 # Our
@@ -101,11 +114,56 @@ if __name__ == '__main__':
         # lr = 0.000005 # Lindeberg?
         weight_decay = 1e-4 #1e-2
         batch_size_per_gpu = 24
-        num_epochs = 500 # 1000
+        num_epochs = 1000 # 1000
         ip_scales = 18 #18 # 9 #14 #7
-        image_size = 224 #224 #128 #192
+        image_size = 224 #224 #128 #192 #80
+        warp_image_bool = False
 
-        # multi_scale_training_bool = 
+        # multi_scale_training_bool = False
+
+        linderberg_bool = False
+        my_data = True
+        all_scales_train_bool = False
+        orginal_mnist_bool = False
+
+        cifar_data_bool = False
+
+        oracle_bool = False
+        argmax_bool = False
+
+        oracle_plot_overlap_bool = False
+        argmax_plot_overlap_bool = False
+        oracle_argmax_plot_overlap_bool = False
+
+        sim_clr_bool = True
+        contrastive_2_bool = True
+
+    elif IP_contrastive_bool:
+        sim_clr_bool = True
+
+        if sim_clr_bool:
+            lr = 1e-4 #1e-4 # IP_caps
+            
+            weight_decay = 1e-4 #1e-2
+            batch_size_per_gpu = 48 #128
+            num_epochs = 200 # 1000
+            ip_scales = 18 #18 # 9 #14 #7
+            image_size = 112 #224 #128 #192 #80
+            warp_image_bool = False
+
+            contrastive_2_bool = True
+
+        else:
+            lr = 1e-2 #1e-4 # IP_caps
+            
+            weight_decay = 1e-4 #1e-2
+            batch_size_per_gpu = 64 #128
+            num_epochs = 200 # 1000
+            ip_scales = 18 #18 # 9 #14 #7
+            image_size = 112 #224 #128 #192 #80
+            warp_image_bool = False
+
+            contrastive_2_bool = True
 
         linderberg_bool = False
         my_data = True
@@ -160,15 +218,15 @@ if __name__ == '__main__':
 
     # Get RDM's and RDM Correlation
     if test_mode and rdm_corr:
-        save_rdms = ['s1', 'c1', 's2b', 'c2b'] # None
+        save_rdms = ['c1', 'c2b', 'clf'] #, 'c2b'] #, 'c2', 'c2b', 'c3', 'clf'] #['s1', 'c1', 's2b', 'c2b'] # None
     else:
         save_rdms = []  # ['s1', 'c1', 's2b', 'c2b'] # None
 
     # PLot Filter
     if test_mode and featur_viz:
-        plt_filters = ['s1'] # None
+        plt_filters = ['s1'] # # ['s1', 'c1', 's2b', 'c2b'] # None
     else:
-        plt_filters = []  # ['s1', 'c1', 's2b', 'c2b'] # None
+        plt_filters = []  # None
 
     
     # Set some variables
@@ -179,18 +237,46 @@ if __name__ == '__main__':
 
     MNIST_Scale = train_dataset
 
-    # Initializing the model
-    model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool, IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool)
+
+    if IP_contrastive_finetune_bool:
+        # Initializing the model
+        pre_prj_name = "checkpoint_HMAX_SimClr_idea_2_mlp_scaleAug_const_size_single_band_deeper_02_drop_mnist_19S1_18C1_05stride_S1_correct_gabor_abs_BN_bias_real_S2b_BN_relu_2scale_112_64bs_1by4_1e4"
+        model_pre = hmax_fixed_ligtning.HMAX_trainer(pre_prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, \
+                                                MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool, \
+                                                IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool, \
+                                                IP_full_bool = IP_full_bool, IP_bool_recon = IP_bool_recon, IP_contrastive_finetune_bool = False, \
+                                                contrastive_2_bool = contrastive_2_bool, sim_clr_bool = sim_clr_bool, batch_size = batch_size_per_gpu)
+        model_pre = model_pre.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + pre_prj_name + '/HMAX-epoch=6-train_acc1=0.8771613836288452-train_loss=1.1774545907974243.ckpt')
+        if sim_clr_bool:
+            model_pre = model_pre.HMAX.encoder
+        else:
+            model_pre = model_pre.HMAX.encoder_q
+
+        print('########################################################')
+        print('\n Loaded the pretrained model')
+
+        model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, \
+                                                MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool, \
+                                                IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool, \
+                                                IP_full_bool = IP_full_bool, IP_bool_recon = IP_bool_recon, IP_contrastive_finetune_bool = True, model_pre = model_pre)
+    else:
+        # Initializing the model
+        model = hmax_fixed_ligtning.HMAX_trainer(prj_name, n_ori, n_classes, lr, weight_decay, ip_scales, IP_bool, visualize_mode, \
+                                                MNIST_Scale, capsnet_bool = capsnet_bool, IP_capsnet_bool = IP_capsnet_bool, \
+                                                IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool, \
+                                                IP_full_bool = IP_full_bool, IP_bool_recon = IP_bool_recon, IP_contrastive_finetune_bool = False, \
+                                                contrastive_2_bool = contrastive_2_bool, sim_clr_bool = sim_clr_bool, batch_size = batch_size_per_gpu, \
+                                                IP_2_streams = IP_2_streams, cifar_data_bool = cifar_data_bool)
 
     # Loading weights if required
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
         # Change Path into own folder
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=240-val_acc1=99.04387987293482-val_loss=0.04373102669451152.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=59-val_acc1=99.36899038461539-val_loss=0.029037245774629693.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
-            model.prj_name = prj_name + "_ref"
-            model.HMAX.prj_name = prj_name + "_ref"
+            model.prj_name = prj_name + "_ref_big_same_78400"
+            model.HMAX.prj_name = prj_name + "_ref_big_same_78400"
         else:
             model.prj_name = prj_name
             model.HMAX.prj_name = prj_name
@@ -199,11 +285,21 @@ if __name__ == '__main__':
         model.HMAX.MNIST_Scale = MNIST_Scale
         model.lr = lr
         model.HMAX.same_scale_viz = same_scale_viz
+
+        #
         model.HMAX.base_scale = image_size
         model.ip_scales = ip_scales
+        model.HMAX.ip_scales = ip_scales
+
+        if IP_2_streams:
+            model.HMAX.model_pre.ip_scales = ip_scales
+            model.HMAX.stream_2_bool = False
 
         model.HMAX.save_rdms = save_rdms
         model.HMAX.plt_filters = plt_filters
+
+        if val_mode:
+            model.plot_moco_hists = True
     
         ###################################################################
 
@@ -249,16 +345,20 @@ if __name__ == '__main__':
     #         my_dataset_scales_temp.append(mds)
     # my_dataset_scales = my_dataset_scales_temp
 
-    my_dataset_scales = [2000, 4000]#[500, 1000, 2000, 4000, 6727, 8000] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
+    # my_dataset_scales = [2000, 4757] 
+    my_dataset_scales = [2000, 500, 8000, 1000, 4000, 6727] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
+    # my_dataset_scales = [2000, 1682, 2378, 1414, 2828]
+    # my_dataset_scales = [1, 0.841, 0.5, 1.414, 2] #, 0.25, 4] # Cifar10 Scales
     print('my_dataset_scales : ',my_dataset_scales)
 
-    # my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/train'
-    # my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/val'
-    # my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale'
+    my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/train'
+    my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/val'
+    my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale'
     #
-    my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/train'
-    my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/val'
-    my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale'
+    # my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/train'
+    # my_dataset_valdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/val'
+    # my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale'
+
     # my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/cifar10_20_no_pad/scale'
     # my_dataset_testdir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/visual_images_RDM/scale'
 
@@ -268,14 +368,21 @@ if __name__ == '__main__':
         rdm_thomas_datasets = my_dataset_scales
 
     # Calling the dataloader
-    if my_data and not IP_contrastive_bool:
+    if cifar_data_bool and not IP_contrastive_bool:
+        print('In cifar10 data and not IP_contrastive_bool Condition')
+        data = dataloader_lightning.dataa_loader_cifar10(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
+                                                IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
+    elif my_data and not IP_contrastive_bool:
         print('In my data and not IP_contrastive_bool Condition')
         data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool)
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
+                                                IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
     elif my_data and IP_contrastive_bool:
         print('In IP_contrastive_bool Condition')
-        data = dataloader_lightning.dataa_loader_contrastive(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                my_dataset_scales = my_dataset_scales, test_mode = test_mode)
+        data = dataloader_lightning.dataa_loader_simclr(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, \
+                                                warp_image_bool = warp_image_bool, contrastive_2_bool = contrastive_2_bool)
         
     elif orginal_mnist_bool:
         data = dataloader_lightning.dataa_loader(image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
@@ -286,14 +393,24 @@ if __name__ == '__main__':
 
 
     # Callbacks and Trainer
-    checkpoint_callback = ModelCheckpoint(
-                            monitor="val_acc1",
-                            # Change Path into own folder
-                            dirpath="/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/" + prj_name,
-                            filename="HMAX-{epoch}-{val_acc1}-{val_loss}",
-                            save_top_k=20,
-                            mode="max",
-                        )
+    if IP_contrastive_bool:
+        checkpoint_callback = ModelCheckpoint(
+                                monitor="train_loss",
+                                # Change Path into own folder
+                                dirpath="/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/" + prj_name,
+                                filename="HMAX-{epoch}-{train_acc1}-{train_loss}",
+                                save_top_k=20,
+                                mode="min",
+                            )
+    else:
+        checkpoint_callback = ModelCheckpoint(
+                                monitor="val_loss",
+                                # Change Path into own folder
+                                dirpath="/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/" + prj_name,
+                                filename="HMAX-{epoch}-{val_acc1}-{val_loss}",
+                                save_top_k=20,
+                                mode="min",
+                            )
 
     # # create NeptuneLogger
     # neptune_logger = NeptuneLogger(
@@ -303,12 +420,12 @@ if __name__ == '__main__':
     #     source_files=['*.py'],
     # )
     
-    if IP_capsnet_bool: # or IP_contrastive_bool:
+    if IP_capsnet_bool: # or IP_contrastive_bool: # or IP_contrastive_finetune_bool:
         print('Clipping grad norm to 0.5')
-        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], gradient_clip_val= 0.5) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
+        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'ddp', callbacks = [checkpoint_callback]) #, precision=16) #, logger = neptune_logger) #, gradient_clip_val= 0.) #, \
                                                     # gradient_clip_algorithm="value") #, logger = wandb_logger)
     else:
-        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], accumulate_grad_batches = 1) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
+        trainer = pl.Trainer(max_epochs = num_epochs, devices=n_gpus, accelerator = 'gpu', strategy = 'dp', callbacks = [checkpoint_callback], accumulate_grad_batches = 1) #, precision=16) #, logger = neptune_logger) #, gradient_clip_val= 0.5, \
                                                 # gradient_clip_algorithm="value") #, logger = wandb_logger)
     # Train
     if not(test_mode or val_mode or rdm_corr or rdm_thomas):
@@ -323,7 +440,7 @@ if __name__ == '__main__':
 
         # ########################
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[0]}.pkl")
 
@@ -333,7 +450,7 @@ if __name__ == '__main__':
 
         # ########################
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[1]}.pkl")
 
@@ -400,7 +517,8 @@ if __name__ == '__main__':
                         prj_name = prj_name_save + "_oracle"
 
                         data = dataloader_lightning.dataa_loader_my(int(image_size/(s_data/4000)), my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True, warp_image_bool = warp_image_bool, 
+                                                                    IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
                         model.orcale_bool = True
 
                         # + str(s_data)
@@ -436,7 +554,8 @@ if __name__ == '__main__':
                                                                         my_dataset_scales = my_dataset_scales, test_mode = True)
                             else:
                                 data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, testdir_scale_cat, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                                        my_dataset_scales = my_dataset_scales, test_mode = True, rdm_corr_mode = True)
+                                                                        my_dataset_scales = my_dataset_scales, test_mode = True, rdm_corr_mode = True, warp_image_bool = warp_image_bool, 
+                                                                    IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
 
                             model.orcale_bool = False
 
@@ -456,7 +575,7 @@ if __name__ == '__main__':
         print('Now Loading the Data for sending to RDM Corr')
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
         # os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[0]}.pkl")
@@ -467,7 +586,7 @@ if __name__ == '__main__':
         open_file.close()
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
         # os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[1]}.pkl")
@@ -482,7 +601,7 @@ if __name__ == '__main__':
 
         # stage_list = ['c1', 'c2', 'c2b', 'c3']
         # stage_list = ['c1', 's2b', 'c2b', 'clf']
-        stage_list = ['s1'] #, 'c1']
+        stage_list = save_rdms #['s1'] #, 'c1']
 
         spearman_corr_list = []
         for stage in stage_list:
@@ -532,7 +651,7 @@ if __name__ == '__main__':
         ax.grid()
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
         fig.savefig(os.path.join(job_dir, "rdm_correlation_plot.png"), dpi=199)
 
     elif rdm_thomas:
@@ -601,7 +720,8 @@ if __name__ == '__main__':
                 my_dataset_testdir_scale = my_dataset_testdir + str(s_data) + "/test"
                 # Calling the dataloader
                 data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                            my_dataset_scales = my_dataset_scales, test_mode = True)
+                                                            my_dataset_scales = my_dataset_scales, test_mode = True, warp_image_bool = warp_image_bool, 
+                                                                    IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
 
                 if s_i == 0:
                     model.first_scale_test = True
@@ -699,7 +819,7 @@ if __name__ == '__main__':
         prj_name_save = prj_name
 
         if not(oracle_plot_overlap_bool or argmax_plot_overlap_bool or oracle_argmax_plot_overlap_bool):
-            if not(linderberg_bool or my_data):
+            if not(linderberg_bool or my_data or cifar_data_bool):
                 for s_i, s_data in enumerate(scale_datasets):
 
                     print('###################################################')
@@ -725,7 +845,7 @@ if __name__ == '__main__':
                         model.first_scale_test = False
                     #
                     trainer.test(model, data)
-            elif my_data:
+            elif my_data or cifar_data_bool:
                 for s_i, s_data in enumerate(my_dataset_scales):
 
                     print('###################################################')
@@ -752,7 +872,8 @@ if __name__ == '__main__':
                         prj_name = prj_name_save + "_oracle"
 
                         data = dataloader_lightning.dataa_loader_my(int(image_size/(s_data/4000)), my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True, warp_image_bool = warp_image_bool, 
+                                                                    IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
                         model.orcale_bool = True
 
                         # + str(s_data)
@@ -774,13 +895,20 @@ if __name__ == '__main__':
                             prj_name = prj_name_save + "_argmax"
 
 
-                        if my_data and IP_contrastive_bool:
+                        if cifar_data_bool and not IP_contrastive_bool:
+                            rescaled_image_size = int(32*s_data)
+                            print('rescaled_image_size : ',rescaled_image_size)
+                            data = dataloader_lightning.dataa_loader_cifar10(rescaled_image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
+                                                IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
+                        elif my_data and IP_contrastive_bool:
                             print('In IP_contrastive_bool Condition')
                             data = dataloader_lightning.dataa_loader_contrastive(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                                     my_dataset_scales = my_dataset_scales, test_mode = True)
                         else:
                             data = dataloader_lightning.dataa_loader_my(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir_scale, batch_size_per_gpu, n_gpus, featur_viz, \
-                                                                    my_dataset_scales = my_dataset_scales, test_mode = True)
+                                                                    my_dataset_scales = my_dataset_scales, test_mode = True, warp_image_bool = warp_image_bool, 
+                                                                    IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
 
                         model.orcale_bool = False
 
@@ -974,169 +1102,173 @@ if __name__ == '__main__':
         
         # #####################################################################################################
 
-        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # # S1
-        # S1_dir = os.path.join(main_dir, 'S1')
-        # S1_dir = os.path.join(S1_dir, 'prj_' + prj_name_save)
-        # images_list = os.listdir(S1_dir)
-        
-        # filtered_images_list = []
-        # for il in images_list:
-        #     if il.split('.')[-1] == 'npy':
-        #         filtered_images_list.append(il)
+        if 's1' in plt_filters:
+            main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+            # S1
+            S1_dir = os.path.join(main_dir, 'S1')
+            S1_dir = os.path.join(S1_dir, 'prj_' + prj_name_save)
+            images_list = os.listdir(S1_dir)
+            
+            filtered_images_list = []
+            for il in images_list:
+                if il.split('.')[-1] == 'npy':
+                    filtered_images_list.append(il)
 
-        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        # print('scales_list : ',scales_list)
-        # index_sort = np.argsort(scales_list)
-        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+            scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+            print('scales_list : ',scales_list)
+            index_sort = np.argsort(scales_list)
+            sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
 
-        # sorted_images_list = [os.path.join(S1_dir, sil) for sil in sorted_images_list]
+            sorted_images_list = [os.path.join(S1_dir, sil) for sil in sorted_images_list]
 
-        # print('sorted_images_list : ',sorted_images_list)
+            print('sorted_images_list : ',sorted_images_list)
 
-        # combined_image = np.empty((1))
-        # for index, im_path in enumerate(sorted_images_list):
-        #     # combined_vertical_image = cv2.imread(im_path)
-        #     combined_vertical_image = np.load(im_path)
+            combined_image = np.empty((1))
+            for index, im_path in enumerate(sorted_images_list):
+                # combined_vertical_image = cv2.imread(im_path)
+                combined_vertical_image = np.load(im_path)
 
-        #     if len(combined_image.shape) == 1:
-        #         combined_image = combined_vertical_image
-        #     else:
-        #         # print('combined_image : ',combined_image.shape)
-        #         # print('combined_vertical_image : ',combined_vertical_image.shape)
-        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+                if len(combined_image.shape) == 1:
+                    combined_image = combined_vertical_image
+                else:
+                    # print('combined_image : ',combined_image.shape)
+                    # print('combined_vertical_image : ',combined_vertical_image.shape)
+                    combined_image = cv2.hconcat([combined_image, combined_vertical_image])
 
-        # out_path = os.path.join(S1_dir, "filters_all.png")
-        # cv2.imwrite(out_path, combined_image)
+            out_path = os.path.join(S1_dir, "filters_all.png")
+            cv2.imwrite(out_path, combined_image)
 
-        # plt.figure(figsize = (50, 100))
-        # plt.imshow(combined_image)
-        # plt.savefig(out_path.split('.')[0] + '_plt.png')
+            plt.figure(figsize = (50, 100))
+            plt.imshow(combined_image)
+            plt.savefig(out_path.split('.')[0] + '_plt.png')
 
 
         # ######################################################################################################
 
 
-        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # # C1
-        # C1_dir = os.path.join(main_dir, 'C1')
-        # C1_dir = os.path.join(C1_dir, 'prj_' + prj_name_save)
-        # images_list = os.listdir(C1_dir)
-        
-        # filtered_images_list = []
-        # for il in images_list:
-        #     if il.split('.')[-1] == 'npy':
-        #         filtered_images_list.append(il)
+        if 'c1' in plt_filters:
+            main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+            # C1
+            C1_dir = os.path.join(main_dir, 'C1')
+            C1_dir = os.path.join(C1_dir, 'prj_' + prj_name_save)
+            images_list = os.listdir(C1_dir)
+            
+            filtered_images_list = []
+            for il in images_list:
+                if il.split('.')[-1] == 'npy':
+                    filtered_images_list.append(il)
 
-        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        # print('scales_list : ',scales_list)
-        # index_sort = np.argsort(scales_list)
-        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+            scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+            print('scales_list : ',scales_list)
+            index_sort = np.argsort(scales_list)
+            sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
 
-        # sorted_images_list = [os.path.join(C1_dir, sil) for sil in sorted_images_list]
+            sorted_images_list = [os.path.join(C1_dir, sil) for sil in sorted_images_list]
 
-        # print('sorted_images_list : ',sorted_images_list)
+            print('sorted_images_list : ',sorted_images_list)
 
-        # combined_image = np.empty((1))
-        # for index, im_path in enumerate(sorted_images_list):
-        #     # combined_vertical_image = cv2.imread(im_path)
-        #     combined_vertical_image = np.load(im_path)
+            combined_image = np.empty((1))
+            for index, im_path in enumerate(sorted_images_list):
+                # combined_vertical_image = cv2.imread(im_path)
+                combined_vertical_image = np.load(im_path)
 
-        #     print('combined_image : ',combined_image.shape)
-        #     print('combined_vertical_image : ',combined_vertical_image.shape)
+                print('combined_image : ',combined_image.shape)
+                print('combined_vertical_image : ',combined_vertical_image.shape)
 
-        #     if len(combined_image.shape) == 1:
-        #         combined_image = combined_vertical_image
-        #     else:
-        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+                if len(combined_image.shape) == 1:
+                    combined_image = combined_vertical_image
+                else:
+                    combined_image = cv2.hconcat([combined_image, combined_vertical_image])
 
-        # out_path = os.path.join(C1_dir, "filters_all.png")
-        # cv2.imwrite(out_path, combined_image)
+            out_path = os.path.join(C1_dir, "filters_all.png")
+            cv2.imwrite(out_path, combined_image)
 
-        # plt.figure(figsize = (50, 100))
-        # plt.imshow(combined_image)
-        # plt.savefig(out_path.split('.')[0] + '_plt.png')
-
-        # ######################################################################################################
-
-        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # # C2
-        # C2_dir = os.path.join(main_dir, 'C2')
-        # C2_dir = os.path.join(C2_dir, 'prj_' + prj_name_save)
-        # images_list = os.listdir(C2_dir)
-        
-        # filtered_images_list = []
-        # for il in images_list:
-        #     if il.split('.')[-1] == 'npy':
-        #         filtered_images_list.append(il)
-
-        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        # print('scales_list : ',scales_list)
-        # index_sort = np.argsort(scales_list)
-        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
-
-        # sorted_images_list = [os.path.join(C2_dir, sil) for sil in sorted_images_list]
-
-        # print('sorted_images_list : ',sorted_images_list)
-
-        # combined_image = np.empty((1))
-        # for index, im_path in enumerate(sorted_images_list):
-        #     # combined_vertical_image = cv2.imread(im_path)
-        #     combined_vertical_image = np.load(im_path)
-
-        #     print('combined_image : ',combined_image.shape)
-        #     print('combined_vertical_image : ',combined_vertical_image.shape)
-
-        #     if len(combined_image.shape) == 1:
-        #         combined_image = combined_vertical_image
-        #     else:
-        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
-
-        # out_path = os.path.join(C2_dir, "filters_all.png")
-        # cv2.imwrite(out_path, combined_image)
-
-        # plt.figure(figsize = (50, 100))
-        # plt.imshow(combined_image)
-        # plt.savefig(out_path.split('.')[0] + '_plt.png')
+            plt.figure(figsize = (50, 100))
+            plt.imshow(combined_image)
+            plt.savefig(out_path.split('.')[0] + '_plt.png')
 
         # ######################################################################################################
 
+        if 'c2b' in plt_filters:
+            main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+            # C2
+            C2_dir = os.path.join(main_dir, 'C2')
+            C2_dir = os.path.join(C2_dir, 'prj_' + prj_name_save)
+            images_list = os.listdir(C2_dir)
+            
+            filtered_images_list = []
+            for il in images_list:
+                if il.split('.')[-1] == 'npy':
+                    filtered_images_list.append(il)
 
-        # main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
-        # # S2b
-        # S2b_dir = os.path.join(main_dir, 'S2b')
-        # S2b_dir = os.path.join(S2b_dir, 'prj_' + prj_name_save)
-        # images_list = os.listdir(S2b_dir)
-        
-        # filtered_images_list = []
-        # for il in images_list:
-        #     if il.split('.')[-1] == 'npy':
-        #         filtered_images_list.append(il)
+            scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+            print('scales_list : ',scales_list)
+            index_sort = np.argsort(scales_list)
+            sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
 
-        # scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
-        # print('scales_list : ',scales_list)
-        # index_sort = np.argsort(scales_list)
-        # sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+            sorted_images_list = [os.path.join(C2_dir, sil) for sil in sorted_images_list]
 
-        # sorted_images_list = [os.path.join(S2b_dir, sil) for sil in sorted_images_list]
+            print('sorted_images_list : ',sorted_images_list)
 
-        # print('sorted_images_list : ',sorted_images_list)
+            combined_image = np.empty((1))
+            for index, im_path in enumerate(sorted_images_list):
+                # combined_vertical_image = cv2.imread(im_path)
+                combined_vertical_image = np.load(im_path)
 
-        # combined_image = np.empty((1))
-        # for index, im_path in enumerate(sorted_images_list):
-        #     # combined_vertical_image = cv2.imread(im_path)
-        #     combined_vertical_image = np.load(im_path)
+                print('combined_image : ',combined_image.shape)
+                print('combined_vertical_image : ',combined_vertical_image.shape)
 
-        #     if len(combined_image.shape) == 1:
-        #         combined_image = combined_vertical_image
-        #     else:
-        #         # print('combined_image : ',combined_image.shape)
-        #         # print('combined_vertical_image : ',combined_vertical_image.shape)
-        #         combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+                if len(combined_image.shape) == 1:
+                    combined_image = combined_vertical_image
+                else:
+                    combined_image = cv2.hconcat([combined_image, combined_vertical_image])
 
-        # out_path = os.path.join(S2b_dir, "filters_all.png")
-        # cv2.imwrite(out_path, combined_image)
+            out_path = os.path.join(C2_dir, "filters_all.png")
+            cv2.imwrite(out_path, combined_image)
 
-        # plt.figure(figsize = (50, 100))
-        # plt.imshow(combined_image)
-        # plt.savefig(out_path.split('.')[0] + '_plt.png')
+            plt.figure(figsize = (50, 100))
+            plt.imshow(combined_image)
+            plt.savefig(out_path.split('.')[0] + '_plt.png')
+
+        # ######################################################################################################
+
+
+        if 's2b' in plt_filters:
+            main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters'
+            # S2b
+            S2b_dir = os.path.join(main_dir, 'S2b')
+            S2b_dir = os.path.join(S2b_dir, 'prj_' + prj_name_save)
+            images_list = os.listdir(S2b_dir)
+            
+            filtered_images_list = []
+            for il in images_list:
+                if il.split('.')[-1] == 'npy':
+                    filtered_images_list.append(il)
+
+            scales_list = np.array([int(fil.split('_')[0]) for fil in filtered_images_list])
+            print('scales_list : ',scales_list)
+            index_sort = np.argsort(scales_list)
+            sorted_images_list = [filtered_images_list[i_s] for i_s in index_sort]
+
+            sorted_images_list = [os.path.join(S2b_dir, sil) for sil in sorted_images_list]
+
+            print('sorted_images_list : ',sorted_images_list)
+
+            combined_image = np.empty((1))
+            for index, im_path in enumerate(sorted_images_list):
+                # combined_vertical_image = cv2.imread(im_path)
+                combined_vertical_image = np.load(im_path)
+
+                if len(combined_image.shape) == 1:
+                    combined_image = combined_vertical_image
+                else:
+                    # print('combined_image : ',combined_image.shape)
+                    # print('combined_vertical_image : ',combined_vertical_image.shape)
+                    combined_image = cv2.hconcat([combined_image, combined_vertical_image])
+
+            out_path = os.path.join(S2b_dir, "filters_all.png")
+            cv2.imwrite(out_path, combined_image)
+
+            plt.figure(figsize = (50, 100))
+            plt.imshow(combined_image)
+            plt.savefig(out_path.split('.')[0] + '_plt.png')
