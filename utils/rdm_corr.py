@@ -201,6 +201,9 @@ def rdm_corr_scales_func(scale_base_state_features, scale_state_features, scale,
 # '''
 def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage):
 
+    small_state_features = small_state_features.reshape(small_state_features.shape[0], -1)
+    large_state_features = large_state_features.reshape(large_state_features.shape[0], -1)
+
     print('small_state_features shape : ',small_state_features.shape)
     print('large_state_features shape : ',large_state_features.shape)
 
@@ -217,11 +220,17 @@ def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage)
 
     # Step 3
     # Z Normalize seperately for each category
-    small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
-    large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
+    # small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
+    # large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
 
-    # print('small_state_features_z_norm min : ',np.min(small_state_features_z_norm))
-    # print('small_state_features_z_norm max : ',np.max(small_state_features_z_norm))
+    small_state_features_z_norm = small_state_features_mean - np.min(small_state_features_mean)
+    small_state_features_z_norm = small_state_features_z_norm / np.max(small_state_features_z_norm)
+    large_state_features_z_norm = large_state_features_mean - np.min(large_state_features_mean)
+    large_state_features_z_norm = large_state_features_z_norm / np.max(large_state_features_z_norm)
+
+    # small_state_features_z_norm = small_state_features_mean
+    # large_state_features_z_norm = large_state_features_mean
+
 
     # # Preparing data for calculating RDM
     small_state_features_data = rsatoolbox.data.Dataset(small_state_features_z_norm)
@@ -257,6 +266,77 @@ def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage)
 
     return spearman_corr
 
+# def rdm_corr_func(small_state_featuresss, large_state_featuresss, save_dir, c_stage):
+
+#     small_state_featuresss = small_state_featuresss.transpose(1,0,2)
+#     large_state_featuresss = large_state_featuresss.transpose(1,0,2)
+
+#     print('small_state_featuresss shape : ',small_state_featuresss.shape)
+#     print('large_state_featuresss shape : ',large_state_featuresss.shape)
+
+#     spearman_corr_list = []
+#     for small_state_features, large_state_features in zip(small_state_featuresss, large_state_featuresss):
+#         print('small_state_features shape : ',small_state_features.shape)
+#         print('large_state_features shape : ',large_state_features.shape)
+
+#         # Step 2
+#         # # Take mean across CxHxW 
+#         # small_state_features_mean = np.mean(small_state_features, axis = (2,3,4))
+#         # large_state_features_mean = np.mean(large_state_features, axis = (2,3,4))
+
+#         small_state_features_mean = small_state_features
+#         large_state_features_mean = large_state_features
+
+#         # print('small_state_features_mean shape : ',small_state_features_mean.shape)
+#         # print('large_state_features_mean shape : ',large_state_features_mean.shape)
+
+#         # Step 3
+#         # Z Normalize seperately for each category
+#         small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
+#         large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
+
+#         # print('small_state_features_z_norm min : ',np.min(small_state_features_z_norm))
+#         # print('small_state_features_z_norm max : ',np.max(small_state_features_z_norm))
+
+#         # # Preparing data for calculating RDM
+#         small_state_features_data = rsatoolbox.data.Dataset(small_state_features_z_norm)
+#         large_state_features_data = rsatoolbox.data.Dataset(large_state_features_z_norm)
+
+#         # Step 4
+#         # Build the 2 RDM Matrices by taking pairwise category euclidean distance for the 2 states
+#         # calc_rmd returns a RDMs object
+#         small_state_features_rdm = rsatoolbox.rdm.calc_rdm(small_state_features_data, method='euclidean', descriptor=None, noise=None)
+#         large_state_features_rdm = rsatoolbox.rdm.calc_rdm(large_state_features_data, method='euclidean', descriptor=None, noise=None)
+
+#         # small_state_features_rdm = calc_rdms_thomas_torch(small_state_features_data)
+#         # large_state_features_rdm = calc_rdms_thomas_torch(large_state_features_data)
+
+#         # Plotting and Saving
+#         # Need to write code for saving
+
+#         fig, ax, ret_val = rsatoolbox.vis.show_rdm(small_state_features_rdm, show_colorbar='figure')
+#         img_name = 'small_state_features_rdm_' + c_stage + '.png'
+#         save_path = os.path.join(save_dir, img_name)
+#         fig.savefig(save_path, bbox_inches='tight', dpi=300)
+
+#         fig, ax, ret_val = rsatoolbox.vis.show_rdm(large_state_features_rdm, show_colorbar='figure')
+#         img_name = 'large_state_features_rdm_' + c_stage + '.png'
+#         save_path = os.path.join(save_dir, img_name)
+#         fig.savefig(save_path, bbox_inches='tight', dpi=300)
+        
+#         # Step 5
+#         # Getting the SPearman Rank Correlation for the 2 RDMs
+#         spearman_corr = rsatoolbox.rdm.compare_spearman(small_state_features_rdm, large_state_features_rdm)
+    
+#         print('spearman_corr : ', spearman_corr)
+
+#         spearman_corr_list.append(spearman_corr)
+
+#     spearman_corr = np.mean(spearman_corr_list)
+#     print('spearman_corr mean : ', spearman_corr)
+
+#     return spearman_corr
+
 
 ############################################################
 # Compute Direct Correlation between features
@@ -287,16 +367,20 @@ def direct_corr_func(small_state_features, large_state_features, save_dir, c_sta
     # Step 5
     # Getting the SPearman Rank Correlation for the 2 Condtions i.e., Small and Large Sizes
     spearman_corr_list = []
+    p_value_list = []
 
     for cat_index in range(len(small_state_features_z_norm)):
         spearman_corr, p_value = sp.stats.spearmanr(small_state_features_z_norm[cat_index], large_state_features_z_norm[cat_index]) #, axis=1)
         spearman_corr_list.append(spearman_corr)
-        print('spearman_corr p value : ', p_value)
-        print('spearman_corr: ', spearman_corr)
+        p_value_list.append(p_value)
+        # print('spearman_corr p value : ', p_value)
+        # print('spearman_corr: ', spearman_corr)
 
 
     spearman_corr = np.mean(spearman_corr_list)
+    p_value = np.mean(p_value_list)
     print('spearman_corr : ', spearman_corr)
+    print('p_value : ', p_value)
 
     return spearman_corr
 

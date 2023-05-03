@@ -8,10 +8,20 @@ import torchvision
 import cv2
 import os
 import _pickle as pickle
+import random
 
 
 
 def save_tensor(filter_maps, MNIST_Scale, prj_name, category, base_path, stage):
+
+    print('\nstage : ',stage)
+    print('filter_maps len : ', len(filter_maps))
+    print('filter_maps shape : ', filter_maps[0].shape)
+
+    if 'c1' == stage or 's2b' == stage or 'c2' == stage:
+        for fm_i in range(len(filter_maps)):
+            center_crop = torchvision.transforms.CenterCrop(140)
+            filter_maps[fm_i] = center_crop(filter_maps[fm_i])
 
     if 'clf' != stage:
         # filter_tensor = torch.cat(filter_maps, dim = 1)
@@ -19,33 +29,69 @@ def save_tensor(filter_maps, MNIST_Scale, prj_name, category, base_path, stage):
     else:
         filter_tensor = filter_maps
 
-    if 'c1' == stage or 's2b' == stage:
-        center_crop = torchvision.transforms.CenterCrop(140)
-        filter_tensor = center_crop(filter_tensor)
-        print('after crop filter_tensor : ',filter_tensor.shape)
+    print('filter_tensor shape : ', filter_tensor.shape)
 
-    filter_numpy = filter_tensor.clone().cpu().numpy()
-    # filter_numpy = filter_numpy - np.min(filter_numpy)
-    # filter_numpy = filter_numpy/np.max(filter_numpy)
+    # if 'c1' == stage or 's2b' == stage or 'c2' == stage:
+    #     center_crop = torchvision.transforms.CenterCrop(40)
+    #     filter_tensor = center_crop(filter_tensor)
+    #     print('after crop filter_tensor : ',filter_tensor.shape)
 
-    # if len(filter_numpy.shape) == 2:
-    #     filter_numpy = filter_numpy[:,:][None][None]
 
-    # For rdm_corr
-    # # 1
-    # # filter_numpy = np.mean(filter_numpy, axis = (1,2,3))
-    # # 2
-    # # filter_numpy = np.amax(filter_numpy, axis = (1,2,3))
-    # # 3
-    # filter_numpy = np.amax(filter_numpy, axis = (2,3))
-    # # if stack else comment this
-    # # filter_numpy = np.amax(filter_numpy, axis = 2)
-    # filter_numpy = np.mean(filter_numpy, axis = 1)
+    filter_numpy = filter_tensor.clone().cpu().numpy()    
+
+    ############################################################################################
+    ############################################################################################
+    # Method 1 -  Add Noise
+    # print('stage : ',stage)
+    # print('filter_numpy max : ',np.max(filter_numpy))
+    # print('filter_numpy min : ',np.min(filter_numpy))
+    # print('filter_numpy abs mean : ',np.mean(np.abs(filter_numpy)))
+
+
+    # filter_numpy = filter_numpy + np.random.randn(*filter_numpy.shape) * 1
+    ############################################################################################
+
+    # filter_numpy = np.amax(filter_numpy, axis = 1)
+    # print('after max filter_tensor : ',filter_numpy.shape)
 
     # Option 4 --> FLatten
-    filter_numpy = filter_numpy.reshape(filter_numpy.shape[0], -1)
+    filter_numpy = filter_numpy.reshape(filter_numpy.shape[0], filter_numpy.shape[1], -1)
     filter_numpy = np.mean(filter_numpy, axis = 0)
+    # filter_numpy = filter_numpy[0]
     print(stage + ' filter_numpy : ' , filter_numpy.shape)
+
+    ############################################################################################
+    ############################################################################################
+    # Method 2 - Randomly Sample 10000 elements
+    num_samples = 78400
+
+    if 'c1' == stage or 's2b' == stage:
+        indices = list(range(len(filter_numpy[0])))
+        # random.shuffle(indices)
+
+        # Select a random sample of size 3 from the shuffled indices
+        sample_indices = sorted(random.sample(indices, k=num_samples))
+
+        print('sample_indices : ',sample_indices[:100])
+
+        temp_filter_numpy = np.zeros((len(filter_numpy), num_samples))
+        for f_i in range(len(filter_numpy)):
+            # temp_filter_numpy[f_i] = np.random.choice(filter_numpy[f_i], size = num_samples)
+            # temp_filter_numpy[f_i] = np.array(random.sample(list(filter_numpy[f_i]), num_samples))
+
+            # indices = list(range(len(filter_numpy[f_i])))
+            # random.shuffle(indices)
+
+            # # Select a random sample of size 3 from the shuffled indices
+            # sample_indices = sorted(random.sample(indices, k=num_samples))
+
+            # Get the corresponding items from the original array based on the selected indices
+            temp_filter_numpy[f_i] = np.array([filter_numpy[f_i][i] for i in sample_indices])
+
+        filter_numpy = temp_filter_numpy
+        print(stage + ' sampled filter_numpy : ' , filter_numpy.shape)
+
+    ############################################################################################
 
     # rdm_thomas
     # job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_thomas", prj_name)

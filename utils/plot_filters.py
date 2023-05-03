@@ -23,7 +23,7 @@ def pad_to_size(a, size):
 
     return a
     
-def plt_filter_func(x_input, filter_maps, prj_name, MNIST_Scale, stage):
+def plt_filter_func(x_input, filter_maps_all, prj_name, MNIST_Scale, stage):
 
     if stage == 'S1':
         ori_size = (x_input[0][0].shape[-1], x_input[0][0].shape[-1])
@@ -32,8 +32,8 @@ def plt_filter_func(x_input, filter_maps, prj_name, MNIST_Scale, stage):
 
     combined_vertical_image = x_input[-int(np.ceil(len(x_input)/2))][0].clone()
 
-    combined_vertical_image = combined_vertical_image - torch.min(combined_vertical_image)
-    combined_vertical_image = (combined_vertical_image/torch.max(combined_vertical_image))
+    # combined_vertical_image = combined_vertical_image - torch.min(combined_vertical_image)
+    # combined_vertical_image = (combined_vertical_image/torch.max(combined_vertical_image))
 
     if stage == 'S1':
         combined_vertical_image = pad_to_size(combined_vertical_image, ori_size)
@@ -46,17 +46,18 @@ def plt_filter_func(x_input, filter_maps, prj_name, MNIST_Scale, stage):
     combined_vertical_image = cv2.copyMakeBorder(combined_vertical_image,3,3,3,3,cv2.BORDER_CONSTANT,value=255)
 
     
-    for s_i in range(1, len(filter_maps)+1):
-        scale_maps = filter_maps[-s_i].clone()
+    for s_i in range(1, len(filter_maps_all)+1):
+        scale_maps = filter_maps_all[-s_i].clone()
 
         # scale_maps = scale_maps - torch.min(scale_maps)
         # scale_maps = (scale_maps/torch.max(scale_maps))
+
+        print('scale_maps : ',scale_maps.shape)
 
         scale_maps = pad_to_size(scale_maps, ori_size)
         # print('scale_maps : ',scale_maps.shape)
         scale_maps_clone = scale_maps.clone()
         scale_maps_clone = scale_maps_clone[0]
-
 
         if stage == 'S2b':
             filter_maps = torch.mean(scale_maps_clone[300:400], dim = 0)
