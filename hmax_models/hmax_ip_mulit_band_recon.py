@@ -135,27 +135,23 @@ class S1(nn.Module):
         self.visualize_mode = visualize_mode
         self.prj_name = prj_name
         self.MNIST_Scale = MNIST_Scale
-        self.padding = padding
 
-        # setattr(self, f's_{scale}', nn.Conv2d(1, n_ori, scale, padding=padding))
-        # s1_cell = getattr(self, f's_{scale}')
-        self.gabor_filter = get_gabor(l_size=scale, la=la, si=si, n_ori=n_ori, aspect_ratio=0.3)  # ??? What is aspect ratio
-        # self.gabor_weights = nn.Parameter(self.gabor_filter, requires_grad=False)
-        # s1_cell.weight = nn.Parameter(gabor_filter, requires_grad=trainable_filters)
-        # for param in s1_cell.parameters():
-        #     param.requires_grad = False
+        setattr(self, f's_{scale}', nn.Conv2d(1, n_ori, scale, padding=padding))
+        s1_cell = getattr(self, f's_{scale}')
+        gabor_filter = get_gabor(l_size=scale, la=la, si=si, n_ori=n_ori, aspect_ratio=0.3)  # ??? What is aspect ratio
+        s1_cell.weight = nn.Parameter(gabor_filter, requires_grad=trainable_filters)
 
-        # # # For normalization
-        # setattr(self, f's_uniform_{scale}', nn.Conv2d(1, n_ori, scale, bias=False))
-        # s1_uniform = getattr(self, f's_uniform_{scale}')
-        # nn.init.constant_(s1_uniform.weight, 1)
-        # for param in s1_uniform.parameters():
-        #     param.requires_grad = False
+        # For normalization
+        setattr(self, f's_uniform_{scale}', nn.Conv2d(1, n_ori, scale, bias=False))
+        s1_uniform = getattr(self, f's_uniform_{scale}')
+        nn.init.constant_(s1_uniform.weight, 1)
+        for param in s1_uniform.parameters():
+            param.requires_grad = False
 
         # self.batchnorm = nn.BatchNorm2d(n_ori, 1e-3)
+
         self.batchnorm = nn.Sequential(nn.BatchNorm2d(n_ori, 1e-3),
-                                       nn.ReLU(True),
-                                      )
+                                       nn.ReLU(True),)
         
 
     def forward(self, x_pyramid, MNIST_Scale = None, batch_idx = None, prj_name = None, category = None, save_rdms = None, plt_filters = None):
@@ -166,10 +162,9 @@ class S1(nn.Module):
 
             x = x_pyramid[p_i]
 
-            # s1_cell = getattr(self, f's_{self.scale}')
+            s1_cell = getattr(self, f's_{self.scale}')
             # s1_map = torch.abs(s1_cell(x))  # adding absolute value
-            # s1_map = s1_cell(x)
-            s1_map = F.conv2d(x, self.gabor_filter.to(device='cuda'), None, 1, self.padding)
+            s1_map = s1_cell(x)
 
             # Normalization
             # s1_unorm = getattr(self, f's_uniform_{self.scale}')
@@ -229,10 +224,6 @@ class C(nn.Module):
         self.n_in_sbands = n_in_sbands
         self.n_out_sbands = int(((n_in_sbands - self.num_scales_pooled) / self.scale_stride) + 1)
         self.img_subsample = image_subsample_factor 
-
-        #################
-        # Option 2:
-        self.inh_linear = nn.Sequential(nn.Linear(400, 400), nn.ReLU())
 
         if not self.global_pool:
             if self.sp_stride_factor is None:
@@ -418,43 +409,6 @@ class C(nn.Module):
                     scale_max.append(s_m)
 
                 # scale_max Shape --> [Scales, Batch, Channels]
-
-                ####################################################
-                ####################################################
-                # Option 1
-                # 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13 13-14 14-15 15-16 
-                # scale_max Shape --> [Scales, Batch, Channels]
-                # Extra loss for penalizing if correct scale does not have max activation (ScaleBand 7 or 8)
-                correct_scale_l_loss = torch.tensor([0.], device = scale_max[0].device)
-                correct_scale_u_loss = torch.tensor([0.], device = scale_max[0].device)
-
-                middle_scaleband = int(len(scale_max)/2)
-
-                for sm_i in range(len(scale_max)):
-                    if sm_i not in [middle_scaleband-1, middle_scaleband]:
-                        if len(scale_max) % 2 == 0:
-                            # When overlap of 1 is done we'll always get a even no else when no. overlap we'll get odd no.
-                            correct_scale_l_loss = correct_scale_l_loss + F.relu(scale_max[sm_i] - scale_max[middle_scaleband-1])
-                        correct_scale_u_loss = correct_scale_u_loss + F.relu(scale_max[sm_i] - scale_max[middle_scaleband])
-
-                correct_scale_loss = (torch.mean(correct_scale_l_loss) + torch.mean(correct_scale_u_loss))
-
-                # print('correct_scale_l_loss mean : ',torch.mean(correct_scale_l_loss))
-                # print('correct_scale_u_loss mean : ',torch.mean(correct_scale_u_loss))
-
-                # correct_scale_loss = (torch.mean(correct_scale_7_loss) + torch.mean(correct_scale_8_loss))*0.5
-
-                ####################################################
-                # # Option 2
-                # # 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13 13-14 14-15 15-16 
-                # # scale_max Shape --> [Scales, Batch, Channels]
-                # # Extra loss for penalizing if correct scale does not have max activation (ScaleBand 7 or 8)
-
-                # for sm_i in range(len(scale_max)):
-                #     scale_max[sm_i] = scale_max[sm_i].squeeze()
-                #     scale_max[sm_i] = scale_max[sm_i] - self.inh_linear(scale_max[sm_i])
-                #     scale_max[sm_i] = scale_max[sm_i][:,:,None,None]
-                        
 
                 ####################################################
                 ####################################################
@@ -780,8 +734,8 @@ class S3(S2):
     # S3 does the same thing as S2
     pass
 
-###########################################################
-class HMAX_IP_basic_multi_band(nn.Module):
+
+class HMAX_IP_basic_multi_band_recon(nn.Module):
     def __init__(self,
                  ip_scales = 18,
                  s1_scale=15, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
@@ -796,26 +750,9 @@ class HMAX_IP_basic_multi_band(nn.Module):
                  category = None,
                  single_scale_bool = True,
                  ):
-###########################################################
-# class HMAX_IP_basic_multi_band(nn.Module):
-#     def __init__(self,
-#                  ip_scales = 18,
-#                  s1_scale=7, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
-#                  s1_la=3.5, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
-#                  s1_si=2.8, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
-#                  n_ori=4,
-#                  num_classes=1000,
-#                  s1_trainable_filters=False,
-#                  visualize_mode = False,
-#                  prj_name = None,
-#                  MNIST_Scale = None,
-#                  category = None,
-#                  single_scale_bool = True,
-#                  ):
-###########################################################
-        super(HMAX_IP_basic_multi_band, self).__init__()
+        super(HMAX_IP_basic_multi_band_recon, self).__init__()
 
-        ip_scales = 18 # 18
+        # ip_scales = 1 # 18
 
         # A few settings
         self.s1_scale = s1_scale
@@ -842,7 +779,6 @@ class HMAX_IP_basic_multi_band(nn.Module):
         # For scale C1
         # self.c1_sp_kernel_sizes = [22,18]
         self.c1_sp_kernel_sizes = [14,12]
-        # self.c1_sp_kernel_sizes = [6,5]
 
         ########################################################
         ########################################################
@@ -924,6 +860,26 @@ class HMAX_IP_basic_multi_band(nn.Module):
                                         )
 
         # self.overall_max_scale_index = []
+
+        ###########################################################
+        # Recon
+
+        self.linear_recon = nn.Sequential(
+                            nn.Linear(400, 1024),
+                            # nn.ReLU(inplace=True),
+                            nn.Dropout(0.2),
+                            nn.Linear(1024, 729),
+                            )
+
+
+        self.reconstruction_layers_conv = nn.Sequential(
+                                          nn.ConvTranspose2d(1, 64, kernel_size = 3, stride = 2),
+                                          nn.ConvTranspose2d(64, 128, kernel_size = 4, stride=2),
+                                          nn.ConvTranspose2d(128, 1, kernel_size = 1, stride=1),
+                                          nn.Sigmoid(),
+                                          )
+
+        self.mse_loss = nn.MSELoss()
 
 
     def get_s4_in_channels(self):
@@ -1066,7 +1022,24 @@ class HMAX_IP_basic_multi_band(nn.Module):
 
 
 
-        return output , max_scale_index, correct_scale_loss
+        ################################################
+        # Reconstruct
+        recon = self.linear_recon(c2b_maps)
+        recon = recon.view(recon.shape[0], 1, 27, 27)
+        # print('recon : ',recon.shape)
+        recon = self.reconstruction_layers_conv(recon)
+        # print('recon : ',recon.shape)
+
+        # Recon Loss
+        org_inp = x_pyramid[-int(np.ceil(len(x_pyramid)/2))]
+        recon_loss = self.mse_loss(recon.reshape(recon.size(0), -1), org_inp.reshape(org_inp.size(0), -1))
+        # print('recon_loss : ',recon_loss)
+
+
+        #################################################
+
+
+        return output , max_scale_index, recon_loss
 
 #############################################################################
 #############################################################################
