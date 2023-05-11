@@ -70,10 +70,10 @@ if __name__ == '__main__':
     # base = pt_model.slice
 
     # Hyper-Parameters
-    IP_bool = False
+    IP_bool = True
     IP_bool_recon = False
     IP_full_bool = False
-    IP_2_streams = True
+    IP_2_streams = False
     capsnet_bool = False
     IP_capsnet_bool = False
     IP_contrastive_bool = False
@@ -113,9 +113,9 @@ if __name__ == '__main__':
         # lr = 1e-3 # caps
         # lr = 0.000005 # Lindeberg?
         weight_decay = 1e-4 #1e-2
-        batch_size_per_gpu = 24
+        batch_size_per_gpu = 6
         num_epochs = 1000 # 1000
-        ip_scales = 18 #18 # 9 #14 #7
+        ip_scales = 17 #18 # 9 #14 #7
         image_size = 224 #224 #128 #192 #80
         warp_image_bool = False
 
@@ -129,7 +129,7 @@ if __name__ == '__main__':
         cifar_data_bool = False
 
         oracle_bool = False
-        argmax_bool = False
+        argmax_bool = True
 
         oracle_plot_overlap_bool = False
         argmax_plot_overlap_bool = False
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 
     # Get RDM's and RDM Correlation
     if test_mode and rdm_corr:
-        save_rdms = ['c1', 'c2b', 'clf'] #, 'c2b'] #, 'c2', 'c2b', 'c3', 'clf'] #['s1', 'c1', 's2b', 'c2b'] # None
+        save_rdms = ['c1'] #, 's2b' ,'c2b', 'clf'] #, 'c2b'] #, 'c2', 'c2b', 'c3', 'clf'] #['s1', 'c1', 's2b', 'c2b'] # None
     else:
         save_rdms = []  # ['s1', 'c1', 's2b', 'c2b'] # None
 
@@ -271,12 +271,12 @@ if __name__ == '__main__':
     # Loading weights if required
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
         # Change Path into own folder
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=59-val_acc1=99.36899038461539-val_loss=0.029037245774629693.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=145-val_acc1=99.30889423076923-val_loss=0.04890362693208952.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
-            model.prj_name = prj_name + "_ref_big_same_78400"
-            model.HMAX.prj_name = prj_name + "_ref_big_same_78400"
+            model.prj_name = prj_name + "_ref_unorm"
+            model.HMAX.prj_name = prj_name + "_ref_unorm"
         else:
             model.prj_name = prj_name
             model.HMAX.prj_name = prj_name
@@ -286,6 +286,8 @@ if __name__ == '__main__':
         model.lr = lr
         model.HMAX.same_scale_viz = same_scale_viz
 
+        model.HMAX.argmax_bool = argmax_bool
+
         #
         model.HMAX.base_scale = image_size
         model.ip_scales = ip_scales
@@ -294,6 +296,8 @@ if __name__ == '__main__':
         if IP_2_streams:
             model.HMAX.model_pre.ip_scales = ip_scales
             model.HMAX.stream_2_bool = False
+            model.HMAX.stream_1_big = False
+            model.HMAX.model_pre.argmax_bool = argmax_bool
 
         model.HMAX.save_rdms = save_rdms
         model.HMAX.plt_filters = plt_filters
@@ -345,10 +349,13 @@ if __name__ == '__main__':
     #         my_dataset_scales_temp.append(mds)
     # my_dataset_scales = my_dataset_scales_temp
 
-    # my_dataset_scales = [2000, 4757] 
-    my_dataset_scales = [2000, 500, 8000, 1000, 4000, 6727] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
-    # my_dataset_scales = [2000, 1682, 2378, 1414, 2828]
-    # my_dataset_scales = [1, 0.841, 0.5, 1.414, 2] #, 0.25, 4] # Cifar10 Scales
+    if not(cifar_data_bool):
+        # my_dataset_scales = [2000, 4757] 
+        my_dataset_scales = [2000, 500, 8000, 1000, 4000, 6727] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
+        # my_dataset_scales = [2000, 1682, 2378, 1414, 2828]
+    else:
+        my_dataset_scales = [1, 0.841, 0.5, 1.414, 2] #, 0.25, 4] # Cifar10 Scales
+
     print('my_dataset_scales : ',my_dataset_scales)
 
     my_dataset_traindir = '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_but_no_smoothning_no_non_linear/scale2000/train'
@@ -440,7 +447,7 @@ if __name__ == '__main__':
 
         # ########################
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[0]}.pkl")
 
@@ -450,7 +457,7 @@ if __name__ == '__main__':
 
         # ########################
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[1]}.pkl")
 
@@ -575,7 +582,7 @@ if __name__ == '__main__':
         print('Now Loading the Data for sending to RDM Corr')
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
         # os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[0]}.pkl")
@@ -586,7 +593,7 @@ if __name__ == '__main__':
         open_file.close()
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         # job_dir = "/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/color_cnn_FFhGRU_center_real_hGRU_illusions_one/corr_plots"
         # os.makedirs(job_dir, exist_ok=True)
         file_name = os.path.join(job_dir, f"filters_data_{my_dataset_scales[1]}.pkl")
@@ -651,7 +658,7 @@ if __name__ == '__main__':
         ax.grid()
 
         # Change Path into own folder
-        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr_noise_after", model.prj_name)
+        job_dir = os.path.join("/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/rdm_corr", model.prj_name)
         fig.savefig(os.path.join(job_dir, "rdm_correlation_plot.png"), dpi=199)
 
     elif rdm_thomas:
@@ -897,6 +904,8 @@ if __name__ == '__main__':
 
                         if cifar_data_bool and not IP_contrastive_bool:
                             rescaled_image_size = int(32*s_data)
+                            if rescaled_image_size%2 != 0:
+                                rescaled_image_size += 1
                             print('rescaled_image_size : ',rescaled_image_size)
                             data = dataloader_lightning.dataa_loader_cifar10(rescaled_image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                 my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
