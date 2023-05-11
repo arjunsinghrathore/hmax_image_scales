@@ -201,7 +201,7 @@ class HMAX_trainer(pl.LightningModule):
                 self.HMAX = HMAX_IP_basic_single_band_deeper(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
-                # Multi-Band
+                # # # Multi-Band
                 # self.HMAX = HMAX_IP_basic_multi_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                 #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
         
@@ -274,6 +274,14 @@ class HMAX_trainer(pl.LightningModule):
             return [optimiser], [lr_scheduler]
         else:
             optimiser = torch.optim.Adam(self.parameters(), self.lr, weight_decay = self.weight_decay)
+
+            if self.cifar_data_bool:
+                lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimiser, T_max=120, eta_min=self.lr / 50
+                )
+
+                return [optimiser], [lr_scheduler]
+
             return optimiser
 
 
@@ -423,7 +431,7 @@ class HMAX_trainer(pl.LightningModule):
             loss = torch.mean(loss)
 
             # Adding scale loss
-            loss = loss + (correct_scale_loss*0.1)
+            loss = loss + (correct_scale_loss*0.5)
             # loss = loss + (correct_scale_loss*0.08)
 
         ########################
