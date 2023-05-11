@@ -52,6 +52,8 @@ class HMAX_2_streams(nn.Module):
         self.model_pre.single_scale_bool = False
 
         self.model_pre.force_const_size_bool = True
+
+        self.stream_1_big = False
         
         self.stream_2_bool = True
         if self.stream_2_bool:
@@ -69,11 +71,34 @@ class HMAX_2_streams(nn.Module):
 
         correct_scale_loss = 0.
 
-        stream_1_output, stram_1_c2b_feats, max_scale_index, _ = self.model_pre(x, batch_idx) #, ip_scales = 2, scale = 4)
+        if self.stream_1_big:
+            scale_factor_list = [0.707, 0.841, 1, 1.189, 1.414]
+            # scale_factor_list = [0.841, 1, 1.189]
+            scale_factor = random.choice(scale_factor_list)
+            # print('scale_factor 1 : ', scale_factor)
+            img_hw = x.shape[-1]
+            new_hw = int(img_hw*scale_factor)
+            x_rescaled = F.interpolate(x, size = (new_hw, new_hw), mode = 'bilinear').clamp(min=0, max=1)
+            # print('x_rescaled : ',x_rescaled.shape)
+            if new_hw <= img_hw:
+                x_rescaled = pad_to_size(x_rescaled, (img_hw, img_hw))
+            elif new_hw > img_hw:
+                center_crop = torchvision.transforms.CenterCrop(img_hw)
+                x_rescaled = center_crop(x_rescaled)
+            # print('x_rescaled : ',x_rescaled.shape)
+            
+            stream_1_output, stram_1_c2b_feats, max_scale_index, _ = self.model_pre(x_rescaled, batch_idx, ip_scales = self.stream_2_ip_scales, scale = self.stream_2_scale)
+            
+        else:
+            # print('Hereeeeeeeee')
+            stream_1_output, stram_1_c2b_feats, max_scale_index, _ = self.model_pre(x, batch_idx) #, ip_scales = 2, scale = 4)
 
         if self.stream_2_bool:
+            # print('Wrongggggg')
             scale_factor_list = [0.707, 0.841, 1, 1.189, 1.414]
+            # scale_factor_list = [0.841, 1, 1.189]
             scale_factor = random.choice(scale_factor_list)
+            # print('scale_factor 2 : ', scale_factor)
             img_hw = x.shape[-1]
             new_hw = int(img_hw*scale_factor)
             x_rescaled = F.interpolate(x, size = (new_hw, new_hw), mode = 'bilinear').clamp(min=0, max=1)
