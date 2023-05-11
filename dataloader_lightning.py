@@ -1011,7 +1011,7 @@ class dataa_loader_cifar10(pl.LightningDataModule):
         transform_train = transforms.Compose(
             [transforms.Pad(8, padding_mode="reflect"),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomAffine((-15, +15), translate=(0, 0.10), shear=(-15, 15)),
+                transforms.RandomAffine((-15, +15), translate=(0, 0.1), shear=(-15, 15)),
                 transforms.RandomCrop(self.image_size),
                 transforms.ToTensor(),
                 transforms.Normalize((.5, .5, .5), (.5, .5, .5)),
@@ -1021,7 +1021,8 @@ class dataa_loader_cifar10(pl.LightningDataModule):
 
         transform_test = transforms.Compose(
             [transforms.Resize(self.image_size),
-            transforms.CenterCrop(32),
+            transforms.Pad((32-self.image_size)//2, padding_mode="reflect"),
+            # transforms.CenterCrop(32),
             transforms.ToTensor(),
             transforms.Normalize((.5, .5, .5), (.5, .5, .5))
             ]
