@@ -63,7 +63,7 @@ from hmax_models.CapsNet import CapsNet
 
 from hmax_models.lindeberg_fov_max import fov_max
 
-from deepnet_models.vgg import vgg16_bn
+from hmax_models.deepnet_models import DeepNet_Models
 
 import argparse
 import os
@@ -90,7 +90,8 @@ class HMAX_trainer(pl.LightningModule):
                  MNIST_Scale = None, first_scale_test = False, capsnet_bool = False, IP_capsnet_bool = False, \
                  IP_contrastive_bool = False, lindeberg_fov_max_bool = False, IP_full_bool = False, \
                  IP_bool_recon = False, IP_contrastive_finetune_bool = False, model_pre = None, \
-                 contrastive_2_bool = False, sim_clr_bool = False, batch_size = None, IP_2_streams = False, cifar_data_bool = False):
+                 contrastive_2_bool = False, sim_clr_bool = False, batch_size = None, IP_2_streams = False, \
+                 cifar_data_bool = False, deepnet_models_bool = False, multi_scale_training_bool = False):
         super().__init__()
         
         self.parameter_dict = {'prj_name':prj_name, 'n_ori':n_ori, 'n_classes':n_classes, \
@@ -101,7 +102,8 @@ class HMAX_trainer(pl.LightningModule):
                                 'IP_full_bool':IP_full_bool, 'IP_bool_recon':IP_bool_recon, \
                                 'IP_contrastive_finetune_bool':IP_contrastive_finetune_bool, 'contrastive_2_bool':contrastive_2_bool, \
                                 'batch_size':batch_size, 'sim_clr_bool':sim_clr_bool, 'IP_2_streams':IP_2_streams, \
-                                'cifar_data_bool':cifar_data_bool}
+                                'cifar_data_bool':cifar_data_bool, 'deepnet_models_bool':deepnet_models_bool, 
+                                'multi_scale_training_bool':multi_scale_training_bool}
 
         print('self.parameter_dict : ',self.parameter_dict)
 
@@ -123,6 +125,9 @@ class HMAX_trainer(pl.LightningModule):
         self.IP_contrastive_bool = IP_contrastive_bool
         self.lindeberg_fov_max_bool = lindeberg_fov_max_bool
         self.IP_contrastive_finetune_bool = IP_contrastive_finetune_bool
+
+        self.deepnet_models_bool = deepnet_models_bool
+        self.multi_scale_training_bool = False #multi_scale_training_bool
 
         self.IP_2_streams = IP_2_streams
 
@@ -193,17 +198,19 @@ class HMAX_trainer(pl.LightningModule):
                 self.HMAX = HMAX_IP_basic_single_band_deeper_cifar10(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
             else:
-            
-                # # # Single Band
-                # self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-                #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
-                # # Single Band Deeper
-                self.HMAX = HMAX_IP_basic_single_band_deeper(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-                                    visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+                
+                if not self.multi_scale_training_bool:
+                    # # # Single Band
+                    # self.HMAX = HMAX_IP_basic_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                    #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+                    # # Single Band Deeper
+                    self.HMAX = HMAX_IP_basic_single_band_deeper(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                        visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
-                # # # Multi-Band
-                # self.HMAX = HMAX_IP_basic_multi_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
-                #                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
+                else:
+                    # # Multi-Band
+                    self.HMAX = HMAX_IP_basic_multi_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                        visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
         
         elif self.IP_bool_recon:
             self.HMAX = HMAX_IP_basic_multi_band_recon(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
@@ -213,7 +220,8 @@ class HMAX_trainer(pl.LightningModule):
             self.HMAX = HMAX_IP_full_single_band(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
                                     visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
-            # self.HMAX = vgg16_bn()
+        elif self.deepnet_models_bool:
+            self.HMAX = DeepNet_Models(num_classes=self.n_classes, prj_name = self.prj_name,)
 
 
         # define loss function (criterion) and optimizer
@@ -419,6 +427,17 @@ class HMAX_trainer(pl.LightningModule):
 
             self.log('recon_loss', recon_loss, on_step=True, on_epoch=True, prog_bar=True)
 
+        elif self.deepnet_models_bool:
+            output = self(images)
+
+            ########################
+            loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            loss = torch.mean(loss)
+
         else:
             output, c2b_maps, max_scale_index, correct_scale_loss = self(images)
 
@@ -434,14 +453,12 @@ class HMAX_trainer(pl.LightningModule):
             loss = loss + (correct_scale_loss*0.5)
             # loss = loss + (correct_scale_loss*0.08)
 
+            self.log('correct_scale_loss', correct_scale_loss, on_step=True, on_epoch=True, prog_bar=True)
+
         ########################
         # if not self.IP_contrastive_bool:
         if True:
-            # self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-            # self.log("train_performance", {"acc1": acc1, "acc5": acc5})
-            # if not self.sim_clr_bool:
             self.log('train_acc1', acc1.item(), on_step=True, on_epoch=True, prog_bar=True)
-            self.log('correct_scale_loss', correct_scale_loss, on_step=True, on_epoch=True, prog_bar=True)
 
         return loss #{'output' : output, 'target' : target} 
 
@@ -574,6 +591,22 @@ class HMAX_trainer(pl.LightningModule):
             # Adding scale loss
             # loss = loss + (correct_scale_loss*0.125)
             val_loss = val_loss + (recon_loss*100.0)
+
+            acc1_list = acc1.cpu().tolist()
+            self.acc1_list += acc1_list
+            acc5_list = acc5.cpu().tolist()
+            self.acc5_list += acc5_list
+
+        elif self.deepnet_models_bool:
+            output = self(images)
+
+            ########################
+            val_loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            val_loss = torch.mean(val_loss)
 
             acc1_list = acc1.cpu().tolist()
             self.acc1_list += acc1_list
@@ -854,6 +887,25 @@ class HMAX_trainer(pl.LightningModule):
             self.acc5_list += acc5_list
 
             self.overall_max_scale_index += max_scale_index
+
+        elif self.deepnet_models_bool:
+            output = self(images)
+
+            ########################
+            val_loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            time.sleep(1)
+            val_loss_list = val_loss.cpu().tolist()
+            # print('val_loss_list : ',val_loss_list) 
+            self.val_losses += val_loss_list
+
+            acc1_list = acc1.cpu().tolist()
+            self.acc1_list += acc1_list
+            acc5_list = acc5.cpu().tolist()
+            self.acc5_list += acc5_list
 
 
         else:
