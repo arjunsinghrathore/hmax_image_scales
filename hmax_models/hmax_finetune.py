@@ -32,11 +32,11 @@ class HMAX_finetune(nn.Module):
 
         self.model_pre = model_pre
         # # No Image Scale Pyramid
-        # self.model_pre.ip_scales = 1
-        # self.model_pre.single_scale_bool = True
+        self.model_pre.ip_scales = 1
+        self.model_pre.single_scale_bool = True
         # # # Image Scale Pyramid
-        self.model_pre.ip_scales = 18
-        self.model_pre.single_scale_bool = False
+        # self.model_pre.ip_scales = 18
+        # self.model_pre.single_scale_bool = False
 
         self.model_pre.force_const_size_bool = True
 
