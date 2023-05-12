@@ -79,12 +79,13 @@ if __name__ == '__main__':
     IP_contrastive_bool = False
     IP_contrastive_finetune_bool = False
     lindeberg_fov_max_bool = False
+    deepnet_models_bool = False
     if capsnet_bool:
         prj_name = "checkpoint_CapsNet_data_shuffle_org_MNIST_data_64bs_1by4_1e4"
     elif IP_capsnet_bool:
         prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_to_12_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif IP_bool:
-        prj_name = "checkpoint_HMAX_deeper_single_band_02_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_2scale_224_48bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_deeper_multi_band_5_02_drop_scale_lin_attn_better_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_2scale_112_48bs_1by4_1e4"
     elif IP_2_streams: 
         prj_name = "checkpoint_HMAX_2_streams_ScaleBand_large_one_classifier_single_deeper_band_C1_overlap_02_drop_Equal_loss05_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_48bs_1by4_1e4"
     elif IP_bool_recon:
@@ -98,6 +99,8 @@ if __name__ == '__main__':
         prj_name = "checkpoint_HMAX_finetune_SimClr_idea_2_mlp_scaleAug_const_size_single_band_deeper_02_drop_mnist_7S1_6C1_05stride_S1_correct_gabor_abs_BN_bias_real_S2b_BN_relu_2scale_112_64bs_1by4_1e4"
     elif lindeberg_fov_max_bool:
         prj_name = "checkpoint_lindeberg_avgpool_fov_max_after_final_linear_5e4_lr_no_weight_decay_2scale_112_before_64bs_1by4"
+    elif deepnet_models_bool:
+        prj_name = "checkpoint_ResNet50_Scratch_05to8_scales_224_before_64bs_1by4"
     else:
         prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
         # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     n_ori = 4
     n_classes = 10
 
-    if IP_bool or IP_full_bool or capsnet_bool or IP_capsnet_bool or IP_bool_recon or IP_contrastive_finetune_bool or IP_2_streams:
+    if IP_bool or IP_full_bool or capsnet_bool or IP_capsnet_bool or IP_bool_recon or IP_contrastive_finetune_bool or IP_2_streams or deepnet_models_bool:
         # lr = 0.000001 # For 7 scales
         # lr = 0.00000005 # For 14 scales
         # lr = 0.00001 # Our
@@ -113,13 +116,13 @@ if __name__ == '__main__':
         # lr = 1e-3 # caps
         # lr = 0.000005 # Lindeberg?
         weight_decay = 1e-4 #1e-2
-        batch_size_per_gpu = 6
+        batch_size_per_gpu = 24
         num_epochs = 1000 # 1000
         ip_scales = 17 #18 # 9 #14 #7
         image_size = 224 #224 #128 #192 #80
         warp_image_bool = False
 
-        # multi_scale_training_bool = False
+        # multi_scale_training_bool = True
 
         linderberg_bool = False
         my_data = True
@@ -129,7 +132,7 @@ if __name__ == '__main__':
         cifar_data_bool = False
 
         oracle_bool = False
-        argmax_bool = True
+        argmax_bool = False
 
         oracle_plot_overlap_bool = False
         argmax_plot_overlap_bool = False
@@ -137,6 +140,8 @@ if __name__ == '__main__':
 
         sim_clr_bool = True
         contrastive_2_bool = True
+    
+    
 
     elif IP_contrastive_bool:
         sim_clr_bool = True
@@ -266,12 +271,13 @@ if __name__ == '__main__':
                                                 IP_contrastive_bool = IP_contrastive_bool, lindeberg_fov_max_bool = lindeberg_fov_max_bool, \
                                                 IP_full_bool = IP_full_bool, IP_bool_recon = IP_bool_recon, IP_contrastive_finetune_bool = False, \
                                                 contrastive_2_bool = contrastive_2_bool, sim_clr_bool = sim_clr_bool, batch_size = batch_size_per_gpu, \
-                                                IP_2_streams = IP_2_streams, cifar_data_bool = cifar_data_bool)
+                                                IP_2_streams = IP_2_streams, cifar_data_bool = cifar_data_bool, deepnet_models_bool = deepnet_models_bool) #, \
+                                                # multi_scale_training_bool = multi_scale_training_bool)
 
     # Loading weights if required
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
         # Change Path into own folder
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=145-val_acc1=99.30889423076923-val_loss=0.04890362693208952.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=44-val_acc1=99.18870192307692-val_loss=0.04128790784776015.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
