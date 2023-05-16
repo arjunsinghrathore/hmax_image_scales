@@ -65,6 +65,8 @@ from hmax_models.lindeberg_fov_max import fov_max
 
 from hmax_models.deepnet_models import DeepNet_Models
 
+from hmax_models.ENN_han_paper import ENN_YH
+
 import argparse
 import os
 import random
@@ -91,7 +93,8 @@ class HMAX_trainer(pl.LightningModule):
                  IP_contrastive_bool = False, lindeberg_fov_max_bool = False, IP_full_bool = False, \
                  IP_bool_recon = False, IP_contrastive_finetune_bool = False, model_pre = None, \
                  contrastive_2_bool = False, sim_clr_bool = False, batch_size = None, IP_2_streams = False, \
-                 cifar_data_bool = False, deepnet_models_bool = False, multi_scale_training_bool = False):
+                 cifar_data_bool = False, deepnet_models_bool = False, multi_scale_training_bool = False,
+                 ENN_bool = False):
         super().__init__()
         
         self.parameter_dict = {'prj_name':prj_name, 'n_ori':n_ori, 'n_classes':n_classes, \
@@ -103,7 +106,7 @@ class HMAX_trainer(pl.LightningModule):
                                 'IP_contrastive_finetune_bool':IP_contrastive_finetune_bool, 'contrastive_2_bool':contrastive_2_bool, \
                                 'batch_size':batch_size, 'sim_clr_bool':sim_clr_bool, 'IP_2_streams':IP_2_streams, \
                                 'cifar_data_bool':cifar_data_bool, 'deepnet_models_bool':deepnet_models_bool, 
-                                'multi_scale_training_bool':multi_scale_training_bool}
+                                'multi_scale_training_bool':multi_scale_training_bool, 'ENN_bool':ENN_bool}
 
         print('self.parameter_dict : ',self.parameter_dict)
 
@@ -128,6 +131,8 @@ class HMAX_trainer(pl.LightningModule):
 
         self.deepnet_models_bool = deepnet_models_bool
         self.multi_scale_training_bool = False #multi_scale_training_bool
+
+        self.ENN_bool = ENN_bool
 
         self.IP_2_streams = IP_2_streams
 
@@ -190,6 +195,9 @@ class HMAX_trainer(pl.LightningModule):
         elif self.lindeberg_fov_max_bool:
             # print('In hmax_fixed_lightning succes')
             self.HMAX = fov_max(ip_scales = self.ip_scales, num_classes=self.n_classes)
+
+        elif self.ENN_bool:
+            self.HMAX = ENN_YH(ip_scales = self.ip_scales, num_classes=self.n_classes, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
         
         elif self.IP_bool:
 
@@ -427,7 +435,7 @@ class HMAX_trainer(pl.LightningModule):
 
             self.log('recon_loss', recon_loss, on_step=True, on_epoch=True, prog_bar=True)
 
-        elif self.deepnet_models_bool:
+        elif self.deepnet_models_bool or self.ENN_bool:
             output = self(images)
 
             ########################
@@ -439,7 +447,7 @@ class HMAX_trainer(pl.LightningModule):
             loss = torch.mean(loss)
 
         else:
-            output, c2b_maps, max_scale_index, correct_scale_loss = self(images)
+            output, c2b_maps, max_scale_index, correct_scale_loss = self(images, batch_idx)
 
             ########################
             loss = self.criterion(output, target)
@@ -597,7 +605,7 @@ class HMAX_trainer(pl.LightningModule):
             acc5_list = acc5.cpu().tolist()
             self.acc5_list += acc5_list
 
-        elif self.deepnet_models_bool:
+        elif self.deepnet_models_bool or self.ENN_bool:
             output = self(images)
 
             ########################
@@ -615,7 +623,7 @@ class HMAX_trainer(pl.LightningModule):
 
         else:
             # print('Correct Place')
-            output, c2b_maps, max_scale_index, correct_scale_loss = self(images)
+            output, c2b_maps, max_scale_index, correct_scale_loss = self(images, batch_idx)
 
             ########################
             val_loss = self.criterion(output, target)
@@ -888,7 +896,7 @@ class HMAX_trainer(pl.LightningModule):
 
             self.overall_max_scale_index += max_scale_index
 
-        elif self.deepnet_models_bool:
+        elif self.deepnet_models_bool or self.ENN_bool:
             output = self(images)
 
             ########################
