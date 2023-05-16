@@ -46,7 +46,8 @@ class DeepNet_Models(nn.Module):
 
         self.num_classes = num_classes
 
-        self.deep_model = models.resnet50(pretrained=False)
+        # self.deep_model = models.resnet50(pretrained=False)
+        self.deep_model = models.vgg16_bn(pretrained=False)
         
         self.classifier = nn.Sequential(
                                         nn.Dropout(0.5),

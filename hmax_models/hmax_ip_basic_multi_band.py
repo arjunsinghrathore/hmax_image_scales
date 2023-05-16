@@ -238,8 +238,16 @@ class C(nn.Module):
         # self.one_conv = nn.Sequential(nn.Conv2d(16, 16, kernel_size = 1, stride = 1), nn.ReLU())
         # self.scale_lin = nn.Sequential(nn.Linear(4, 4), nn.ReLU())
 
-        self.scale_lin_1 = nn.Sequential(nn.Linear(512, 64), nn.ReLU())
-        self.scale_lin_2 = nn.Sequential(nn.Linear(64, 1))
+        if c2b_bool:
+            self.scale_attention = nn.Sequential(nn.Linear(512, 64), nn.ReLU(), nn.Linear(64, 1))
+            # self.scale_attention = nn.Sequential(nn.Linear(512, 64), nn.Linear(64, 1))
+            # self.scale_lin_2 = nn.Sequential(nn.Linear(64, 1))
+
+            # self.gate_fc = nn.Linear(512, 1)
+
+            # self.inhibition_strength = nn.Parameter(torch.tensor(1.), requires_grad=True)
+
+            # self.sigma_fc = nn.Sequential(nn.Linear(512, 64), nn.ReLU(), nn.Linear(64, 1))
 
         if not self.global_pool:
             if self.sp_stride_factor is None:
@@ -448,10 +456,97 @@ class C(nn.Module):
                     ####################################################
                     # Method --> Attention weights for scale channels
                     x_prime = x.squeeze().permute(2,0,1) # [No. of scales, Batch, Channel]
-                    # x_prime_clone = x_prime.clone()
-                    x_prime_attn = self.scale_lin_1(x_prime)  # [No. of scales, Batch, hidden_channels]
-                    x_prime_attn = self.scale_lin_2(x_prime_attn)  # [No. of scales, Batch, 1]
-                    attention_weights = F.softmax(x_prime_attn, dim=0)  # Normalize weights across scales
+                    
+
+                    ######################################
+                    # # Attention Method 1
+                    # x_prime_attn = self.scale_attention(x_prime)  # [No. of scales, Batch, 1]
+                    # attention_weights = F.softmax(x_prime_attn, dim=0)  # Normalize weights across scales
+
+                    # num_scales = attention_weights.shape[0]
+
+                    # updated_attention_weights = torch.zeros_like(attention_weights)
+
+                    # # Implement recurrent inhibition
+                    # for scale in range(num_scales):
+                    #     # if scale != 0:
+                    #     if scale > 0:
+                    #         # Compute inhibition from previous scales
+                    #         inhibition_prev = (self.inhibition_strength / num_scales) * torch.sum(attention_weights[max(scale-2, 0):scale], dim=0)
+                    #     else:
+                    #         inhibition_prev = 0
+                    #     # if scale != num_scales:
+                    #     if scale < num_scales-1:
+                    #         # Compute inhibition from following scales
+                    #         inhibition_next = (self.inhibition_strength / num_scales) * torch.sum(attention_weights[scale+1:min(scale+3, num_scales)], dim=0)
+                    #     else:
+                    #         inhibition_next = 0
+
+                    #     # Apply inhibition to current scale
+                    #     updated_attention_weights[scale] = attention_weights[scale] - (inhibition_prev + inhibition_next)
+                    #     # Apply ReLU to ensure non-negativity
+                    #     updated_attention_weights[scale] = F.relu(updated_attention_weights[scale])
+
+                    # attention_weights = updated_attention_weights
+
+                    ######################################
+                    # Attention Method 2
+                    num_scales = x_prime.shape[0]
+                    init_attention_weights = (torch.ones((num_scales, 1, 1))).to(x_prime.device)
+                    # init_attention_weights = (torch.zeros((num_scales, 1, 1), requires_grad = False)).to(x_prime.device)
+                    attention_weights = init_attention_weights.repeat(1, x_prime.shape[1], 1)  # [num_scales, batch_size, 1]
+        
+                    # compute dynamic lateral inhibition
+                    for _ in range(4):
+                        # attention_weights = F.softmax(attention_weights, dim=0)
+                        # attention_weights_raw = attention_weights * torch.sigmoid(self.scale_attention(x_prime))
+                        # attention_weights_raw = attention_weights * F.softmax(self.scale_attention(x_prime), dim=0)
+
+                        ###################
+                        attention_weights_raw = attention_weights * self.scale_attention(x_prime)
+                        ###################
+                        # gate = torch.sigmoid(self.gate_fc(x_prime))  # new line
+                        # attention_weights_raw = gate * attention_weights + (1 - gate) * self.scale_attention(x_prime)  # modified line
+                        ###################
+
+                        attention_weights = F.softmax(attention_weights_raw, dim=0)
+                        # attention_weights = attention_weights_raw
+
+                        # compute expected scale
+                        temperature = 0.01
+                        attention_weights_es = F.softmax(attention_weights_raw/temperature, dim=0)
+                        scales = torch.arange(num_scales).to(x_prime.device)  # [num_scales]
+                        expected_scale = (scales[:, None, None] * attention_weights_es).sum(dim=0)  # [batch_size, 1]
+
+                        # print('expected_scale : ', expected_scale, ' ::: Real Scale : ', torch.argmax(attention_weights, dim = 0))
+
+                        # compute adaptive sigma
+                        # sigma = 0.5 # 1.5 #self.strength_of_inhibition * torch.sigmoid(self.sigma_fc(x_prime))
+                        
+                        sigma = torch.where((scales[:, None, None] < 1) | (scales[:, None, None] > num_scales - 2), 
+                                            0.1, 
+                                            0.5)
+
+                        # print('sigma : ',sigma)
+
+
+                        # compute Gaussian-like weights
+                        gaussian_weights = torch.exp(-((scales[:, None, None] - expected_scale) ** 2) / (2 * sigma ** 2))  # [num_scales, batch_size, 1]
+
+                        # apply lateral inhibition
+                        attention_weights = attention_weights * gaussian_weights
+                        # attention_weights = F.softmax(attention_weights, dim=0)
+                        
+
+                    ######################################
+
+                    # # Normalize the adjusted attention weights so they sum up to 1 across the scale dimension
+                    attention_weights = F.softmax(attention_weights, dim=0)
+
+                    # print('\nattention_weights : ', attention_weights[:,0, 0])
+
+                    if batch_idx % 50 == 0:
+                        print('\nattention_weights : ', attention_weights[:,0, 0])
 
                     # Multiply the input tensor by the attention_weights
                     output = x_prime * attention_weights
@@ -532,10 +627,42 @@ class C(nn.Module):
 
                     # Method 4 --> Attention weights for scale channels
                     x_prime = scale_max # [No. of scales, Batch, Channel]
-                    # x_prime_clone = x_prime.clone()
-                    x_prime_attn = self.scale_lin_1(x_prime)  # [No. of scales, Batch, hidden_channels]
-                    x_prime_attn = self.scale_lin_2(x_prime_attn)  # [No. of scales, Batch, 1]
-                    attention_weights = F.softmax(x_prime_attn, dim=0)  # Normalize weights across scales
+
+                    #####################################################
+                    # # x_prime_clone = x_prime.clone()
+                    # x_prime_attn = self.scale_lin_1(x_prime)  # [No. of scales, Batch, hidden_channels]
+                    # x_prime_attn = self.scale_lin_2(x_prime_attn)  # [No. of scales, Batch, 1]
+                    # attention_weights = F.softmax(x_prime_attn, dim=0)  # Normalize weights across scales
+                    #####################################################
+
+                    # Attention Method 2
+                    num_scales = x_prime.shape[0]
+                    init_attention_weights = (torch.ones((num_scales, 1, 1)) / num_scales).to(x_prime.device)
+                    attention_weights = init_attention_weights.repeat(1, x_prime.shape[1], 1)  # [num_scales, batch_size, 1]
+        
+                    # compute dynamic lateral inhibition
+                    for _ in range(4):
+                        attention_weights = attention_weights * self.scale_attention(x_prime)
+                        attention_weights = F.softmax(attention_weights, dim=0)
+
+                        # compute expected scale
+                        scales = torch.arange(num_scales).to(x_prime.device)  # [num_scales]
+                        expected_scale = (scales[:, None, None] * attention_weights).sum(dim=0)  # [batch_size, 1]
+
+                        # print('expected_scale : ', expected_scale, ' ::: Real Scale : ', torch.argmax(attention_weights, dim = 0))
+
+                        # compute adaptive sigma
+                        sigma = 1.5 # 1.5 #self.strength_of_inhibition * torch.sigmoid(self.sigma_fc(x_prime))
+
+                        # compute Gaussian-like weights
+                        gaussian_weights = torch.exp(-((scales[:, None, None] - expected_scale) ** 2) / (2 * sigma ** 2))  # [num_scales, batch_size, 1]
+
+                        # apply lateral inhibition
+                        attention_weights = attention_weights * gaussian_weights
+
+                    attention_weights = F.softmax(attention_weights, dim=0)
+
+                    #####################################################
 
                     # Multiply the input tensor by the attention_weights
                     output = x_prime * attention_weights
@@ -878,6 +1005,20 @@ class HMAX_IP_basic_multi_band(nn.Module):
         return s4_in
 
     def make_ip(self, x, same_scale_viz = None, base_scale = None, ip_scales = None, scale = None):
+
+        scale_factor_list = [0.707, 0.841, 1, 1.189, 1.414]
+        # scale_factor_list = [0.841, 1, 1.189]
+        scale_factor = random.choice(scale_factor_list)
+        # print('scale_factor 1 : ', scale_factor)
+        img_hw = x.shape[-1]
+        new_hw = int(img_hw*scale_factor)
+        x_rescaled = F.interpolate(x, size = (new_hw, new_hw), mode = 'bilinear').clamp(min=0, max=1)
+        # print('x_rescaled : ',x_rescaled.shape)
+        if new_hw <= img_hw:
+            x_rescaled = pad_to_size(x_rescaled, (img_hw, img_hw))
+        elif new_hw > img_hw:
+            center_crop = torchvision.transforms.CenterCrop(img_hw)
+            x_rescaled = center_crop(x_rescaled)
 
         if ip_scales and scale:
             # print("In right condition")
