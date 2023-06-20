@@ -208,13 +208,46 @@ class ENN_YH(nn.Module):
                 s_m = F.max_pool2d(feature_out_list[i], feature_out_list[i].shape[-1], 1)
                 scale_max.append(s_m)
 
+        #############################################################################
+        scale_max_index = torch.stack(scale_max, dim=0) # Shape --> Scale x B x C
+        scale_max_index = scale_max_index.squeeze()
+        # print('scale_max_index : ',scale_max_index.shape)
+
+        max_scale_index = [0]*scale_max_index.shape[1]
+        # max_scale_index = torch.tensor(max_scale_index).cuda()
+        for p_i in range(1, len(x_pyramid)):
+            
+            for b_i in range(scale_max_index.shape[1]):
+
+                # print(f'b_i : {b_i}, p_i {p_i}')
+                # print('scale_max[max_scale_index[b_i]][b_i] : ',scale_max[max_scale_index[b_i]][b_i])
+                # print('scale_max[p_i][b_i] : ',scale_max[p_i][b_i])
+
+                scale_max_argsort = torch.argsort(torch.stack([scale_max_index[max_scale_index[b_i]][b_i], scale_max_index[p_i][b_i]], dim=0), dim = 0) # Shape --> 2 x C
+                # print('x_pyramid_flatten_argsort : ',x_pyramid_flatten_argsort)
+                # Sum across the (CxHxW) dimension
+                sum_scale_batch = torch.sum(scale_max_argsort, dim = 1) # SHape --> 2 x 1]
+
+                # sum_scale_batch = sum_scale_batch.cpu().numpy()
+                # sum_scale_batch = sum_scale_batch.astype(np.float32)
+                # sum_scale_batch[0] = sum_scale_batch[0]/((image_scales[max_scale_index[b_i]]/image_scales[-1])**1)
+                # sum_scale_batch[1] = sum_scale_batch[1]/((image_scales[p_i]/image_scales[-1])**1)
+                # print('max_scale_index[b_i] : ', max_scale_index[b_i], ':: p_i : ', p_i, ' :: sum_scale_batch : ',sum_scale_batch)
+
+                if sum_scale_batch[0] < sum_scale_batch[1]:
+                    max_scale_index[b_i] = p_i
+
+        #############################################################################
+
         scale_max = torch.stack(scale_max, dim=4)
+
+
         scale_max, _ = torch.max(scale_max, dim=4)
         scale_max = scale_max.squeeze()
 
         output = self.classifier(scale_max)
 
-        return output
+        return output, max_scale_index
 
 #############################################################################
 #############################################################################

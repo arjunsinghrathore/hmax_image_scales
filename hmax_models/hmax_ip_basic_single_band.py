@@ -457,42 +457,42 @@ class C(nn.Module):
                         # print('ori_size : ',ori_size)
 
                 ####################################################
-                # # MaxPool for C1 with 2 scales being max pooled over at a time with overlap
-                for p_i in range(len(x_pyramid)-1):
-                    # print('############################')
-                    x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[0], self.sp_stride[0])
-                    x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[1], self.sp_stride[1])
-
-
-                    # First interpolating such that feature points match spatially
-                    if x_1.shape[-1] > x_2.shape[-1]:
-                        # x_2 = pad_to_size(x_2, x_1.shape[-2:])
-                        x_2 = F.interpolate(x_2, size = x_1.shape[-2:], mode = 'bilinear')
-                    else:
-                        # x_1 = pad_to_size(x_1, x_2.shape[-2:])
-                        x_1 = F.interpolate(x_1, size = x_2.shape[-2:], mode = 'bilinear')
-
-                    # Then padding
-                    x_1 = pad_to_size(x_1, ori_size)
-                    x_2 = pad_to_size(x_2, ori_size)
-
-                    ##################################
-                    # Maxpool over scale groups
-                    x = torch.stack([x_1, x_2], dim=4)
-
-                    to_append, _ = torch.max(x, dim=4)
-                    c_maps.append(to_append)
-
-                # # ####################################################
-                # # # MultiScale Training: MaxPool for C1 with 1 scales being max pooled over at a time
-                # for p_i in range(len(x_pyramid)):
+                # # # MaxPool for C1 with 2 scales being max pooled over at a time with overlap
+                # for p_i in range(len(x_pyramid)-1):
                 #     # print('############################')
                 #     x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[0], self.sp_stride[0])
+                #     x_2 = F.max_pool2d(x_pyramid[p_i+1], self.sp_kernel_size[1], self.sp_stride[1])
+
+
+                #     # First interpolating such that feature points match spatially
+                #     if x_1.shape[-1] > x_2.shape[-1]:
+                #         # x_2 = pad_to_size(x_2, x_1.shape[-2:])
+                #         x_2 = F.interpolate(x_2, size = x_1.shape[-2:], mode = 'bilinear')
+                #     else:
+                #         # x_1 = pad_to_size(x_1, x_2.shape[-2:])
+                #         x_1 = F.interpolate(x_1, size = x_2.shape[-2:], mode = 'bilinear')
 
                 #     # Then padding
                 #     x_1 = pad_to_size(x_1, ori_size)
+                #     x_2 = pad_to_size(x_2, ori_size)
 
-                #     c_maps.append(x_1)
+                #     ##################################
+                #     # Maxpool over scale groups
+                #     x = torch.stack([x_1, x_2], dim=4)
+
+                #     to_append, _ = torch.max(x, dim=4)
+                #     c_maps.append(to_append)
+
+                # # ####################################################
+                # # MultiScale Training: MaxPool for C1 with 1 scales being max pooled over at a time
+                for p_i in range(len(x_pyramid)):
+                    # print('############################')
+                    x_1 = F.max_pool2d(x_pyramid[p_i], self.sp_kernel_size[0], self.sp_stride[0])
+
+                    # Then padding
+                    x_1 = pad_to_size(x_1, ori_size)
+
+                    c_maps.append(x_1)
 
                 ####################################################
                 # # ArgMax case for C1
@@ -1216,29 +1216,12 @@ class HMAX_IP_basic_single_band(nn.Module):
 #############################################################################
 #############################################################################
 
-# class HMAX_IP_basic_single_band_deeper(nn.Module):
-#     def __init__(self,
-#                  ip_scales = 18,
-#                  s1_scale=5, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
-#                  s1_la=2.5, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
-#                  s1_si=2, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
-#                  n_ori=4,
-#                  num_classes=1000,
-#                  s1_trainable_filters=False,
-#                  visualize_mode = False,
-#                  prj_name = None,
-#                  MNIST_Scale = None,
-#                  category = None,
-#                  single_scale_bool = True,
-#                  ):
-#         super(HMAX_IP_basic_single_band_deeper, self).__init__()
-#########################################################################################################
 class HMAX_IP_basic_single_band_deeper(nn.Module):
     def __init__(self,
                  ip_scales = 18,
-                 s1_scale=13, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
-                 s1_la=6.8, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
-                 s1_si=5.4, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
+                 s1_scale=7, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
+                 s1_la=3.5, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
+                 s1_si=2.8, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
                  n_ori=4,
                  num_classes=1000,
                  s1_trainable_filters=False,
@@ -1253,9 +1236,26 @@ class HMAX_IP_basic_single_band_deeper(nn.Module):
 # class HMAX_IP_basic_single_band_deeper(nn.Module):
 #     def __init__(self,
 #                  ip_scales = 18,
-#                  s1_scale=7, #25 #23 #21 #19 #17 #15 #13 #11 # 9 # 7, #5
-#                  s1_la=3.5, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
-#                  s1_si=2.8, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
+#                  s1_scale=13, #25 #23 #21 #19 #17 #15 #13 #11 # 7, #5
+#                  s1_la=6.8, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
+#                  s1_si=5.4, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
+#                  n_ori=4,
+#                  num_classes=1000,
+#                  s1_trainable_filters=False,
+#                  visualize_mode = False,
+#                  prj_name = None,
+#                  MNIST_Scale = None,
+#                  category = None,
+#                  single_scale_bool = True,
+#                  ):
+#         super(HMAX_IP_basic_single_band_deeper, self).__init__()
+#########################################################################################################
+# class HMAX_IP_basic_single_band_deeper(nn.Module):
+#     def __init__(self,
+#                  ip_scales = 18,
+#                  s1_scale=11, #25 #23 #21 #19 #17 #15 #13 #11 # 9 # 7, #5
+#                  s1_la=5.6, #14.1 #12.7 #11.5 #10.3 #9.1 #7.9 #6.8 #5.6 # 3.5, # 2.5
+#                  s1_si=4.5, #11.3 #10.2 #9.2 #8.2 #7.3 #6.3 #5.4 #4.5 # 2.8, # 2
 #                  n_ori=4,
 #                  num_classes=1000,
 #                  s1_trainable_filters=False,
@@ -1300,10 +1300,10 @@ class HMAX_IP_basic_single_band_deeper(nn.Module):
         # For scale C1
         # self.c1_sp_kernel_sizes = [22,18]
         # self.c1_sp_kernel_sizes = [14,12]
-        self.c1_sp_kernel_sizes = [12,10]
+        # self.c1_sp_kernel_sizes = [12,10]
         # self.c1_sp_kernel_sizes = [18, 15]
         # self.c1_sp_kernel_sizes = [10,8]
-        # self.c1_sp_kernel_sizes = [6,5]
+        self.c1_sp_kernel_sizes = [6,5]
         # self.c1_sp_kernel_sizes = [4,3]
 
 
@@ -1332,14 +1332,23 @@ class HMAX_IP_basic_single_band_deeper(nn.Module):
         # Feature extractors (in the order of the table in Figure 1)
         self.s1 = S1(scale=self.s1_scale, n_ori=n_ori, padding='valid', trainable_filters = True, #s1_trainable_filters,
                      la=self.s1_la, si=self.s1_si, visualize_mode = visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
-        self.c1 = C(global_pool = False, sp_kernel_size=self.c1_sp_kernel_sizes, sp_stride_factor=0.5, n_in_sbands=ip_scales,
+        self.c1 = C(global_pool = False, sp_kernel_size=self.c1_sp_kernel_sizes, sp_stride_factor=0.25, n_in_sbands=ip_scales,
                     num_scales_pooled=self.c1_num_scales_pooled, scale_stride=self.c1_scale_stride, visualize_mode = visualize_mode, \
                     c1_bool = True, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
         self.s2b_before_1 = S2(channels_in=n_ori, channels_out=128, kernel_size=3, stride=1)
         self.s2b_before_2 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
         self.s2b_before_3 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
-        
+
+        self.s2b_before_4 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+        self.s2b_before_5 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+
+        self.s2b_before_6 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+        self.s2b_before_7 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+
+        self.s2b_before_8 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+        self.s2b_before_9 = S2(channels_in=128, channels_out=128, kernel_size=3, stride=1)
+
         # self.c2b_before = torch.nn.MaxPool2d(2, stride=2, padding=1)
         
         self.s2b = S2(channels_in=128, channels_out=128, kernel_size=[4, 8, 12, 16], stride=1, s2b_bool = True)
@@ -1517,13 +1526,22 @@ class HMAX_IP_basic_single_band_deeper(nn.Module):
         s2b_bef_maps_2 = self.s2b_before_2(s2b_bef_maps_1, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
         s2b_bef_maps_3 = self.s2b_before_3(s2b_bef_maps_2, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
 
+        s2b_bef_maps_4 = self.s2b_before_4(s2b_bef_maps_3, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+        s2b_bef_maps_5 = self.s2b_before_5(s2b_bef_maps_4, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+
+        s2b_bef_maps_6 = self.s2b_before_6(s2b_bef_maps_5, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+        s2b_bef_maps_7 = self.s2b_before_7(s2b_bef_maps_6, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+
+        s2b_bef_maps_8 = self.s2b_before_8(s2b_bef_maps_7, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+        s2b_bef_maps_9 = self.s2b_before_9(s2b_bef_maps_8, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+
         # c2b_bef_maps = []
         # for s2b_bef_i in range(len(s2b_bef_maps_2)):
         #     c2b_bef_maps.append(self.c2b_before(s2b_bef_maps_2[s2b_bef_i]))
 
         ###############################################
         # ByPass Route
-        s2b_maps = self.s2b(s2b_bef_maps_3, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
+        s2b_maps = self.s2b(s2b_bef_maps_9, MNIST_Scale = self.MNIST_Scale, prj_name = self.prj_name, category = self.category, x_input = x_pyramid, save_rdms = self.save_rdms, plt_filters = self.plt_filters) # Out 15 Scales x BxCxHxW --> C = 2000
         c2b_maps, c2b_scale_maps, max_scale_index, correct_scale_loss = self.c2b(s2b_maps, x_pyramid, self.MNIST_Scale, batch_idx, self.category, self.prj_name, same_scale_viz = self.same_scale_viz, \
                                                                         base_scale = self.base_scale, image_scales = self.image_scales, save_rdms = self.save_rdms, plt_filters = self.plt_filters, \
                                                                         scale_loss = False, argmax_bool = self.argmax_bool) # Overall x BxCx1x1 --> C = 2000

@@ -39,7 +39,12 @@ class HMAX_2_streams(nn.Module):
     def __init__(self,
                  num_classes=10,
                  prj_name = None,
-                 model_pre = None
+                 model_pre = None,
+                 ip_scales = 1,
+                 single_scale_bool = True,
+                 force_const_size_bool = False,
+                 stream_1_big = False,
+                 stream_2_bool = False,
                  ):
         super(HMAX_2_streams, self).__init__()
 #########################################################################################################
@@ -48,14 +53,14 @@ class HMAX_2_streams(nn.Module):
 
         self.model_pre = model_pre
         # No Image Scale Pyramid
-        self.model_pre.ip_scales = 1
-        self.model_pre.single_scale_bool = False
+        self.model_pre.ip_scales = ip_scales
+        self.model_pre.single_scale_bool = single_scale_bool
 
-        self.model_pre.force_const_size_bool = True
+        self.model_pre.force_const_size_bool = force_const_size_bool
 
-        self.stream_1_big = False
+        self.stream_1_big = stream_1_big
         
-        self.stream_2_bool = True
+        self.stream_2_bool = stream_2_bool
         if self.stream_2_bool:
             self.stream_2_ip_scales = 5
             self.stream_2_scale = 4
