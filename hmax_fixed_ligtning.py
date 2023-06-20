@@ -67,6 +67,10 @@ from hmax_models.deepnet_models import DeepNet_Models
 
 from hmax_models.ENN_han_paper import ENN_YH
 
+from hmax_models.hmaxify_models import HMAXify_Models
+
+# from hmax_models.hmaxify_models_2 import HMAXify_Models
+
 import argparse
 import os
 import random
@@ -94,7 +98,7 @@ class HMAX_trainer(pl.LightningModule):
                  IP_bool_recon = False, IP_contrastive_finetune_bool = False, model_pre = None, \
                  contrastive_2_bool = False, sim_clr_bool = False, batch_size = None, IP_2_streams = False, \
                  cifar_data_bool = False, deepnet_models_bool = False, multi_scale_training_bool = False,
-                 ENN_bool = False):
+                 ENN_bool = False, hmaxify_bool = None):
         super().__init__()
         
         self.parameter_dict = {'prj_name':prj_name, 'n_ori':n_ori, 'n_classes':n_classes, \
@@ -106,7 +110,8 @@ class HMAX_trainer(pl.LightningModule):
                                 'IP_contrastive_finetune_bool':IP_contrastive_finetune_bool, 'contrastive_2_bool':contrastive_2_bool, \
                                 'batch_size':batch_size, 'sim_clr_bool':sim_clr_bool, 'IP_2_streams':IP_2_streams, \
                                 'cifar_data_bool':cifar_data_bool, 'deepnet_models_bool':deepnet_models_bool, 
-                                'multi_scale_training_bool':multi_scale_training_bool, 'ENN_bool':ENN_bool}
+                                'multi_scale_training_bool':multi_scale_training_bool, 'ENN_bool':ENN_bool, \
+                                'hmaxify_bool':hmaxify_bool}
 
         print('self.parameter_dict : ',self.parameter_dict)
 
@@ -130,9 +135,11 @@ class HMAX_trainer(pl.LightningModule):
         self.IP_contrastive_finetune_bool = IP_contrastive_finetune_bool
 
         self.deepnet_models_bool = deepnet_models_bool
-        self.multi_scale_training_bool = False #multi_scale_training_bool
+        self.multi_scale_training_bool = True #multi_scale_training_bool
 
         self.ENN_bool = ENN_bool
+
+        self.hmaxify_bool = hmaxify_bool
 
         self.IP_2_streams = IP_2_streams
 
@@ -230,6 +237,10 @@ class HMAX_trainer(pl.LightningModule):
 
         elif self.deepnet_models_bool:
             self.HMAX = DeepNet_Models(num_classes=self.n_classes, prj_name = self.prj_name,)
+        
+        elif self.hmaxify_bool:
+            self.HMAX = HMAXify_Models(ip_scales = self.ip_scales, n_ori=self.n_ori,num_classes=self.n_classes, \
+                                        visualize_mode = self.visualize_mode, prj_name = self.prj_name, MNIST_Scale = self.MNIST_Scale)
 
 
         # define loss function (criterion) and optimizer
@@ -621,6 +632,7 @@ class HMAX_trainer(pl.LightningModule):
             acc5_list = acc5.cpu().tolist()
             self.acc5_list += acc5_list
 
+
         else:
             # print('Correct Place')
             output, c2b_maps, max_scale_index, correct_scale_loss = self(images, batch_idx)
@@ -641,6 +653,50 @@ class HMAX_trainer(pl.LightningModule):
             self.acc1_list += acc1_list
             acc5_list = acc5.cpu().tolist()
             self.acc5_list += acc5_list
+
+            if False:
+                filter_sizee_list = [15]
+
+                for filter_sizee in filter_sizee_list:
+                    # plotting.visualize_neural_plots(pred_neural_resp.clone(), target_neural_resp.clone(), self.prj_name)
+                    s1_filters = getattr(self.HMAX.s1, f's_{filter_sizee}').weight.data
+                    # print('s1_filters : ',s1_filters.shape)
+                    s1_filters = s1_filters.squeeze()
+                    print('s1_filters : ',s1_filters.shape)
+
+                    save_dir = os.path.join('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/learned_gabor_viz/', self.prj_name)
+                    os.makedirs(save_dir, exist_ok=True)
+
+                    s1_filt_list = []
+                    for filt_ind, s1_filt in enumerate(s1_filters):
+                        image_name = str(filt_ind) + '.png'
+                        s1_filt_3d = s1_filt.permute(1,2,0).reshape(filter_sizee, filter_sizee, 3)
+                        s1_filt_3d = s1_filt_3d.cpu().numpy()
+
+                        s1_filt_list.append(s1_filt_3d)
+                        # cv2.imwrite(os.path.join(save_dir, image_name), s1_filt_3d*255.0)
+
+                    for v_i in range(16):
+                        for h_i in range(8):
+                            if h_i == 0:
+                                s1_filt_list_pad = cv2.copyMakeBorder(s1_filt_list[h_i*16 + v_i],1,1,1,1,cv2.BORDER_CONSTANT,value=[1,1,1])
+                                hori_img = s1_filt_list_pad
+                            else:
+                                s1_filt_list_pad = cv2.copyMakeBorder(s1_filt_list[h_i*16 + v_i],1,1,1,1,cv2.BORDER_CONSTANT,value=[1,1,1])
+                                hori_img = cv2.hconcat([hori_img, s1_filt_list_pad])
+
+                        if v_i == 0: 
+                            vertical_img = hori_img
+                        else:
+                            vertical_img = cv2.vconcat([vertical_img, hori_img])
+
+                    print('vertical_img shape : ',vertical_img.shape)
+                    vertical_img = cv2.resize(vertical_img, (vertical_img.shape[1]*5,vertical_img.shape[0]*5))
+                    # vertical_img = vertical_img/np.max(vertical_img)
+                    vertical_img = (vertical_img - np.min(vertical_img)) / (np.max(vertical_img) - np.min(vertical_img)) # normalize (min-max)
+                    image_name = f'trained_collage_{filter_sizee}_plt_no_norm_gabor.png'
+
+                    cv2.imwrite(os.path.join(save_dir, image_name), vertical_img*255.0)
 
         ########################
         time.sleep(1)
@@ -896,7 +952,7 @@ class HMAX_trainer(pl.LightningModule):
 
             self.overall_max_scale_index += max_scale_index
 
-        elif self.deepnet_models_bool or self.ENN_bool:
+        elif self.deepnet_models_bool:
             output = self(images)
 
             ########################
@@ -914,6 +970,28 @@ class HMAX_trainer(pl.LightningModule):
             self.acc1_list += acc1_list
             acc5_list = acc5.cpu().tolist()
             self.acc5_list += acc5_list
+
+
+        elif self.ENN_bool:
+            output, max_scale_index = self(images)
+
+            ########################
+            val_loss = self.criterion(output, target)
+
+            acc1, acc5 = self.accuracy(output, target, topk=(1, 5))
+
+            ########################
+            time.sleep(1)
+            val_loss_list = val_loss.cpu().tolist()
+            # print('val_loss_list : ',val_loss_list) 
+            self.val_losses += val_loss_list
+
+            acc1_list = acc1.cpu().tolist()
+            self.acc1_list += acc1_list
+            acc5_list = acc5.cpu().tolist()
+            self.acc5_list += acc5_list
+
+            self.overall_max_scale_index += max_scale_index
 
 
         else:

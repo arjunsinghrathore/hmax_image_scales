@@ -357,15 +357,15 @@ class dataa_loader_my(pl.LightningDataModule):
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale595/train',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale707/train',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale841/train',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/train',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/train',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1414/train',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1682/train',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/train',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2378/train',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2828/train',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/train',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/train',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/train',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4757/train',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale5657/train',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale6727/train',
@@ -379,15 +379,15 @@ class dataa_loader_my(pl.LightningDataModule):
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale595/val',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale707/val',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale841/val',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/val',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1000/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1189/val',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1414/val',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale1682/val',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2000/val',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2378/val',
                             '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale2828/val',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/val',
-                            '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale3364/val',
+                            # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4000/val',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale4757/val',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale5657/val',
                             # '/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_hmax/data/mnist_scale/arjun_data/Like_Lindeberg_smoothning_and_non_linear/scale6727/val',
@@ -524,9 +524,152 @@ class dataa_loader_my(pl.LightningDataModule):
         return DataLoader(self.test_data,
                           batch_size = self.batch_size, drop_last = True, num_workers = 1, shuffle = False)
 
+########################################################################################################################
+########################################################################################################################
+
+def center_crop(img):
+    """Returns center cropped image
+    Args:
+    img: image to be center cropped
+    dim: dimensions (width, height) to be cropped
+    """
+    width, height = img.shape[1], img.shape[0]
+
+    if width >= height:
+        dim = height
+    else:
+        dim = width
+        
+    # process crop width and height for max available dimension
+    crop_width = dim
+    crop_height = dim
+    mid_x, mid_y = int(width/2), int(height/2)
+    cw2, ch2 = int(crop_width/2), int(crop_height/2) 
+    crop_img = img[mid_y-ch2:mid_y+ch2, mid_x-cw2:mid_x+cw2]
+    return crop_img
 
 
-############################################################
+class load_imagenette(Dataset):
+    def __init__(self, image_dir, image_size, val_bool = False):
+      
+        self.image_dir = image_dir
+        self.image_size = image_size
+
+        self.image_dir_folders = os.listdir(self.image_dir)
+        self.image_dir_folders = [self.image_dir + '/' + img_pth for img_pth in self.image_dir_folders]
+        self.image_paths = []
+        for id_i in range(len(self.image_dir_folders)):
+            image_paths_class = os.listdir(self.image_dir_folders[id_i])
+            image_paths_ind = [self.image_dir_folders[id_i] + '/' + img_pth_i for img_pth_i in image_paths_class]
+            self.image_paths = self.image_paths + image_paths_ind
+
+        # print('image paths : ', self.image_paths[:100])
+        print('Len self.image_paths : ', len(self.image_paths))
+
+        if not val_bool:
+            self.transform = transforms.Compose([
+                        transforms.Resize(256),
+                        transforms.RandomHorizontalFlip(),
+                        # transforms.RandomVerticalFlip(),
+                        # transforms.RandomRotation(degrees=15),
+                        transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+                        transforms.CenterCrop(224),
+                        transforms.Resize(self.image_size),
+                        transforms.ToTensor(),
+                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                        ])
+        else:
+            self.transform = transforms.Compose([
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
+                        transforms.Resize(self.image_size),
+                        transforms.ToTensor(),
+                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                        ])
+
+        self.cat_to_idx = {'cassetteplayer': 0, 'chainsaw': 1, 'church': 2, 'englishspringer': 3, 'frenchhorn': 4, \
+                           'garbagetruck': 5, 'gaspump': 6, 'golfball': 7, 'parachute': 8, 'tench': 9}
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+
+        # image_path_mod = os.path.join(self.image_dir, self.image_paths[idx])
+        image_path_mod = self.image_paths[idx]
+
+        img = cv2.imread(image_path_mod)
+        img = img[:,:,::-1]
+
+        img = img - np.min(img)
+        img = (img/np.max(img))*255.0
+        img = img.astype(np.uint8)
+
+        img = center_crop(img)
+
+        img = Image.fromarray(img)
+        img = self.transform(img)
+
+        category = self.cat_to_idx[image_path_mod.split('/')[-2]]
+
+        return img, torch.tensor(np.array([category]), dtype = torch.int64)
+
+
+class dataa_loader_imagenette(pl.LightningDataModule):
+    def __init__(self, image_size, traindir, valdir, testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                my_dataset_scales, test_mode, rdm_corr_mode = False, all_scales_train_bool = False, \
+                warp_image_bool = False, IP_contrastive_finetune_bool = False):
+        super().__init__()
+          
+        # Directory to load Data
+        self.traindir = traindir
+        self.valdir = valdir
+        self.testdir = testdir
+        self.featur_viz = featur_viz
+        self.rdm_corr_mode = rdm_corr_mode
+        self.all_scales_train_bool = all_scales_train_bool
+        self.warp_image_bool = warp_image_bool
+        self.IP_contrastive_finetune_bool = IP_contrastive_finetune_bool
+
+        # self.IP_contrastive_bool = IP_contrastive_bool
+
+        self.test_mode = test_mode
+
+        self.image_size = int(image_size)
+
+        # Batch Size
+        self.batch_size = n_gpus*batch_size_per_gpu
+          
+  
+    def setup(self, stage=None):
+
+        data_root = "/cifs/data/tserre/CLPS_Serre_Lab/projects/prj_shared/dataset/ImageNette"
+
+        self.train_data = load_imagenette(data_root + '/train', self.image_size)
+        self.val_data = load_imagenette(data_root + '/val', self.image_size, val_bool = True)
+        self.test_data = self.val_data
+
+
+    def train_dataloader(self):
+        
+        # Generating train_dataloader
+        return DataLoader(self.train_data, 
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
+  
+    def val_dataloader(self):
+        
+        # Generating val_dataloader
+        return DataLoader(self.val_data,
+                          batch_size = self.batch_size, drop_last = True, num_workers = 4, pin_memory=False, shuffle = True)
+  
+    def test_dataloader(self):
+        
+        # Generating test_dataloader
+        return DataLoader(self.test_data,
+                          batch_size = self.batch_size, drop_last = True, num_workers = 1, shuffle = False)
+
+########################################################################################################################
+########################################################################################################################
 
 def pad_to_size(a, size):
 

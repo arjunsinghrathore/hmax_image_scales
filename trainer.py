@@ -80,15 +80,16 @@ if __name__ == '__main__':
     IP_contrastive_finetune_bool = False
     lindeberg_fov_max_bool = False
     deepnet_models_bool = False
-    ENN_bool = True
+    ENN_bool = False
+    hmaxify_bool = True
     if capsnet_bool:
         prj_name = "checkpoint_CapsNet_data_shuffle_org_MNIST_data_64bs_1by4_1e4"
     elif IP_capsnet_bool:
         prj_name = "checkpoint_HMAX_basic_single_band_CapsNet_4_to_12_dim_vector_recon_23S1_22_C1_02_stride_real_S2b_normalize_alpha_square_data_shuffle_linear_classifier_my_lindeberg_data_no_smooth_no_nolin_4scale_224_64bs_1by4_1e4"
     elif IP_bool:
-        prj_name = "checkpoint_HMAX_deeper_multi_band_5_02_drop_scale_lin_attn_better_recurrent_attn_second_gauss_sigma05_bndry01_temp001_t4_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_2scale_112_48bs_1by4_1e4"
-    elif IP_2_streams: 
-        prj_name = "checkpoint_HMAX_2_streams_ScaleBand_large_one_classifier_single_deeper_band_C1_overlap_02_drop_Equal_loss05_mnist_13S1_12C1_05stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_48bs_1by4_1e4"
+        prj_name = "checkpoint_HMAX_deeper_multi_band_5_9_C1_non_overlap_02_drop_mnist_21S1_4stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_224_48bs_1by4_1e4"
+    elif IP_2_streams:
+        prj_name = "checkpoint_HMAX_2_streams_ScaleBand_large_one_classifier_single_deeper_9_band_C1_non_overlap_02_drop_Equal_loss05_mnist_11S1_10C1_025stride_S1_correct_gabor_abs_NT_F_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_48bs_1by4_1e4"
     elif IP_bool_recon:
         prj_name = "checkpoint_HMAX_basic_multi_band_02_drop_recon_100_smoothed_nl_mnist_7S1_6_C1_05_stride_C1_no_interpolate_S1_correct_gabor_BN_relu_real_S2b_BN_relu_data_shuffle_linear_classifier_2scale_112_16bs_1by4_1e4"
     elif IP_full_bool:
@@ -101,9 +102,11 @@ if __name__ == '__main__':
     elif lindeberg_fov_max_bool:
         prj_name = "checkpoint_lindeberg_avgpool_fov_max_after_final_linear_5e4_lr_no_weight_decay_2scale_112_before_64bs_1by4"
     elif deepnet_models_bool:
-        prj_name = "checkpoint_VGG16_BN_Scratch_05to8_scales_224_before_64bs_1by4"
+        prj_name = "checkpoint_AlexNet_BN_ImageNette_224_before_64bs_1by4"
     elif ENN_bool:
-        prj_name = "checkpoint_ENN_1Stride_11scales_224_before_24bs_1by2"
+        prj_name = "checkpoint_ENN_1Stride_11scales_14to28_224_before_24bs_1by2"
+    elif hmaxify_bool:
+        prj_name = "checkpoint_HMAXify_VGG16_BN_no_C1_02_drop_mnist_21S1_4stride_S1_correct_gabor_abs_NT_F_224_before_24bs_1by2"
     else:
         prj_name = "checkpoint_HMAX_latest_slim_PNAS_IVAN_50_MNIST_18_17s_no_S1_norm_192i_10e5_lr" #_new_stride"
         # prj_name = "checkpoint_HMAX_PNAS_100_MNIST_18_IP_GAP_17s_up_down_linderberg_C_S2_alpha_norm_like_S1_no_RELU_1by5_192_20_down_mp_like_HMAX_drop_s4_data_shuffle_linear_classifier_1e4"
@@ -111,7 +114,7 @@ if __name__ == '__main__':
     n_ori = 4
     n_classes = 10
 
-    if IP_bool or IP_full_bool or capsnet_bool or IP_capsnet_bool or IP_bool_recon or IP_contrastive_finetune_bool or IP_2_streams or deepnet_models_bool or ENN_bool:
+    if IP_bool or IP_full_bool or capsnet_bool or IP_capsnet_bool or IP_bool_recon or IP_contrastive_finetune_bool or IP_2_streams or deepnet_models_bool or ENN_bool or hmaxify_bool:
         # lr = 0.000001 # For 7 scales
         # lr = 0.00000005 # For 14 scales
         # lr = 0.00001 # Our
@@ -121,7 +124,7 @@ if __name__ == '__main__':
         weight_decay = 1e-4 #1e-2
         batch_size_per_gpu = 32
         num_epochs = 1000 # 1000
-        ip_scales = 11 #18 # 9 #14 #7
+        ip_scales = 17 #18 # 9 #14 #7
         image_size = 224 #224 #128 #192 #80
         warp_image_bool = False
 
@@ -133,6 +136,7 @@ if __name__ == '__main__':
         orginal_mnist_bool = False
 
         cifar_data_bool = False
+        imagenette_data_bool = False
 
         oracle_bool = False
         argmax_bool = False
@@ -141,8 +145,8 @@ if __name__ == '__main__':
         argmax_plot_overlap_bool = False
         oracle_argmax_plot_overlap_bool = False
 
-        sim_clr_bool = True
-        contrastive_2_bool = True
+        sim_clr_bool = False
+        contrastive_2_bool = False
     
     
 
@@ -214,8 +218,8 @@ if __name__ == '__main__':
 
 
     # Mode
-    test_mode = True
-    val_mode = False
+    test_mode = False
+    val_mode = True
     continue_tr = False
     visualize_mode = False
     rdm_corr = False
@@ -275,13 +279,13 @@ if __name__ == '__main__':
                                                 IP_full_bool = IP_full_bool, IP_bool_recon = IP_bool_recon, IP_contrastive_finetune_bool = False, \
                                                 contrastive_2_bool = contrastive_2_bool, sim_clr_bool = sim_clr_bool, batch_size = batch_size_per_gpu, \
                                                 IP_2_streams = IP_2_streams, cifar_data_bool = cifar_data_bool, deepnet_models_bool = deepnet_models_bool, \
-                                                ENN_bool = ENN_bool) #, \
+                                                ENN_bool = ENN_bool, hmaxify_bool = hmaxify_bool) #, \
                                                 # multi_scale_training_bool = multi_scale_training_bool)
 
     # Loading weights if required
     if test_mode or val_mode or continue_tr or rdm_corr or rdm_thomas:
         # Change Path into own folder
-        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=2-val_acc1=98.02684294871794-val_loss=0.06468446119106375.ckpt')
+        model = model.load_from_checkpoint('/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/' + prj_name + '/HMAX-epoch=14-val_acc1=99.30889423076923-val_loss=0.03419504308332531.ckpt')
         ########################## While Testing ##########################
         ## Need to force change some variables after loading a checkpoint
         if rdm_corr or rdm_thomas:
@@ -359,9 +363,9 @@ if __name__ == '__main__':
     #         my_dataset_scales_temp.append(mds)
     # my_dataset_scales = my_dataset_scales_temp
 
-    if not(cifar_data_bool):
+    if not(cifar_data_bool or imagenette_data_bool):
         # my_dataset_scales = [2000, 4757] 
-        my_dataset_scales = [2000, 500, 8000, 1000, 4000, 6727] #[4000] #, [2000, 8000] #[2000, 4000, 8000]
+        my_dataset_scales = [2000, 500, 8000, 1000, 4000, 6727] #[4000] #, [2000, 8000] #[2000, 4000, 8000] 1682, 1414, 2378, 2828
         # my_dataset_scales = [2000, 1682, 2378, 1414, 2828]
     else:
         my_dataset_scales = [1, 0.841, 0.5, 1.414, 2] #, 0.25, 4] # Cifar10 Scales
@@ -388,6 +392,11 @@ if __name__ == '__main__':
     if cifar_data_bool and not IP_contrastive_bool:
         print('In cifar10 data and not IP_contrastive_bool Condition')
         data = dataloader_lightning.dataa_loader_cifar10(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
+                                                IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
+    if imagenette_data_bool and not IP_contrastive_bool:
+        print('In imagenette and not IP_contrastive_bool Condition')
+        data = dataloader_lightning.dataa_loader_imagenette(image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                 my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
                                                 IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
     elif my_data and not IP_contrastive_bool:
@@ -836,7 +845,7 @@ if __name__ == '__main__':
         prj_name_save = prj_name
 
         if not(oracle_plot_overlap_bool or argmax_plot_overlap_bool or oracle_argmax_plot_overlap_bool):
-            if not(linderberg_bool or my_data or cifar_data_bool):
+            if not(linderberg_bool or my_data or cifar_data_bool or imagenette_data_bool):
                 for s_i, s_data in enumerate(scale_datasets):
 
                     print('###################################################')
@@ -862,7 +871,7 @@ if __name__ == '__main__':
                         model.first_scale_test = False
                     #
                     trainer.test(model, data)
-            elif my_data or cifar_data_bool:
+            elif my_data or cifar_data_bool or imagenette_data_bool:
                 for s_i, s_data in enumerate(my_dataset_scales):
 
                     print('###################################################')
@@ -918,6 +927,14 @@ if __name__ == '__main__':
                                 rescaled_image_size += 1
                             print('rescaled_image_size : ',rescaled_image_size)
                             data = dataloader_lightning.dataa_loader_cifar10(rescaled_image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
+                                                my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
+                                                IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
+                        if imagenette_data_bool and not IP_contrastive_bool:
+                            rescaled_image_size = int(224*s_data)
+                            if rescaled_image_size%2 != 0:
+                                rescaled_image_size += 1
+                            print('rescaled_image_size : ',rescaled_image_size)
+                            data = dataloader_lightning.dataa_loader_imagenette(rescaled_image_size, my_dataset_traindir, my_dataset_valdir, my_dataset_testdir, batch_size_per_gpu, n_gpus, featur_viz, \
                                                 my_dataset_scales = my_dataset_scales, test_mode = False, all_scales_train_bool = all_scales_train_bool, warp_image_bool = warp_image_bool, 
                                                 IP_contrastive_finetune_bool = IP_contrastive_finetune_bool)
                         elif my_data and IP_contrastive_bool:

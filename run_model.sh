@@ -1,12 +1,13 @@
 #!/bin/bash
-#SBATCH --time=90:00:00
+#SBATCH --time=1:00:00
 #SBATCH -p gpu-he --gres=gpu:1
 #SBATCH -n 4
 #SBATCH -N 1
-#SBATCH --mem=80GB
+#SBATCH --mem=20GB
 #SBATCH -J hmax_pytorch
 ##SBATCH -C quadrortx
-#SBATCH --constraint=v100
+#SBATCH --constraint=a40
+##SBATCH --constraint=v100
 #SBATCH -o /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/logs/MI_%A_%a_%J.out
 #SBATCH -e /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/logs/MI_%A_%a_%J.err
 ##SBATCH --account=carney-tserre-condo
@@ -14,7 +15,8 @@
 
 ##SBATCH -p gpu
 
-cd /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/
+cd /cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch
+
 
 module load anaconda/3-5.2.0
 module load python/3.5.2
