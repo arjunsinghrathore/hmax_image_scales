@@ -23,7 +23,7 @@ def pad_to_size(a, size):
 
     return a
     
-def plt_filter_func(x_input, filter_maps_all, prj_name, MNIST_Scale, stage):
+def plt_filter_func(args, x_input, filter_maps_all, prj_name, train_base_scale, stage):
 
     if stage == 'S1':
         ori_size = (x_input[0][0].shape[-1], x_input[0][0].shape[-1])
@@ -81,13 +81,59 @@ def plt_filter_func(x_input, filter_maps_all, prj_name, MNIST_Scale, stage):
 
 
 
-    main_dir = '/cifs/data/tserre/CLPS_Serre_Lab/aarjun1/hmax_pytorch/visualize_filters/' + stage
+    job_dir = os.path.join(args.fig_dir, 'visualize_filters/' + stage)
     os.makedirs(main_dir, exist_ok=True)
-    job_dir = os.path.join(main_dir, "prj_{}".format(prj_name))
-    os.makedirs(job_dir, exist_ok=True)
 
-    # out_path = os.path.join(job_dir, "{}_filters_temp.png".format(self.MNIST_Scale))
+    # out_path = os.path.join(job_dir, "{}_filters_temp.png".format(self.train_base_scale))
     # cv2.imwrite(out_path, combined_image)
 
-    out_path = os.path.join(job_dir, "{}_filters_temp.npy".format(int(1000*MNIST_Scale)))
+    out_path = os.path.join(job_dir, "{}_filters_temp.npy".format(int(1000*train_base_scale)))
     np.save(out_path, combined_vertical_image)
+
+
+def s1_kernel_viz_func(args, model, title):
+
+    filter_sizee_list = [args.s1_scale]
+
+    for filter_sizee in filter_sizee_list:
+        if title == 'learned':
+            s1_filters = getattr(model.s1, f's_{filter_sizee}').weight.data
+        elif title == 'original':
+            s1_filters = model.s1.gabor_filter
+        # print('s1_filters : ',s1_filters.shape)
+        s1_filters = s1_filters.squeeze()
+        print('s1_filters : ',s1_filters.shape)
+
+        save_dir = os.path.join(args.fig_dir, 's1_kernels')
+        os.makedirs(save_dir, exist_ok=True)
+
+        s1_filt_list = []
+        for filt_ind, s1_filt in enumerate(s1_filters):
+            image_name = str(filt_ind) + '.png'
+            s1_filt_3d = s1_filt.permute(1,2,0).reshape(filter_sizee, filter_sizee, 3)
+            s1_filt_3d = s1_filt_3d.cpu().numpy()
+
+            s1_filt_list.append(s1_filt_3d)
+            # cv2.imwrite(os.path.join(save_dir, image_name), s1_filt_3d*255.0)
+
+        for v_i in range(args.n_ori):
+            for h_i in range(args.n_phi):
+                if h_i == 0:
+                    s1_filt_list_pad = cv2.copyMakeBorder(s1_filt_list[h_i*args.n_ori + v_i],1,1,1,1,cv2.BORDER_CONSTANT,value=[1,1,1])
+                    hori_img = s1_filt_list_pad
+                else:
+                    s1_filt_list_pad = cv2.copyMakeBorder(s1_filt_list[h_i*args.n_ori + v_i],1,1,1,1,cv2.BORDER_CONSTANT,value=[1,1,1])
+                    hori_img = cv2.hconcat([hori_img, s1_filt_list_pad])
+
+            if v_i == 0: 
+                vertical_img = hori_img
+            else:
+                vertical_img = cv2.vconcat([vertical_img, hori_img])
+
+        print('vertical_img shape : ',vertical_img.shape)
+        vertical_img = cv2.resize(vertical_img, (vertical_img.shape[1]*5,vertical_img.shape[0]*5))
+        # vertical_img = vertical_img/np.max(vertical_img)
+        vertical_img = (vertical_img - np.min(vertical_img)) / (np.max(vertical_img) - np.min(vertical_img)) # normalize (min-max)
+        image_name = f'{title}_collage_{filter_sizee}_plt.png'
+
+        cv2.imwrite(os.path.join(save_dir, image_name), vertical_img*255.0)

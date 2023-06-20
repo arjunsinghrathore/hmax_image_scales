@@ -220,13 +220,14 @@ def rdm_corr_func(small_state_features, large_state_features, save_dir, c_stage)
 
     # Step 3
     # Z Normalize seperately for each category
-    # small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / np.std(small_state_features_mean, axis = 1, keepdims = True)
-    # large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / np.std(large_state_features_mean, axis = 1, keepdims = True)
+    eps = 1e-3
+    small_state_features_z_norm = (small_state_features_mean - np.mean(small_state_features_mean, axis = 1, keepdims = True)) / (np.std(small_state_features_mean, axis = 1, keepdims = True) + eps)
+    large_state_features_z_norm = (large_state_features_mean - np.mean(large_state_features_mean, axis = 1, keepdims = True)) / (np.std(large_state_features_mean, axis = 1, keepdims = True) + eps)
 
-    small_state_features_z_norm = small_state_features_mean - np.min(small_state_features_mean)
-    small_state_features_z_norm = small_state_features_z_norm / np.max(small_state_features_z_norm)
-    large_state_features_z_norm = large_state_features_mean - np.min(large_state_features_mean)
-    large_state_features_z_norm = large_state_features_z_norm / np.max(large_state_features_z_norm)
+    # small_state_features_z_norm = small_state_features_mean - np.min(small_state_features_mean)
+    # small_state_features_z_norm = small_state_features_z_norm / np.max(small_state_features_z_norm)
+    # large_state_features_z_norm = large_state_features_mean - np.min(large_state_features_mean)
+    # large_state_features_z_norm = large_state_features_z_norm / np.max(large_state_features_z_norm)
 
     # small_state_features_z_norm = small_state_features_mean
     # large_state_features_z_norm = large_state_features_mean
